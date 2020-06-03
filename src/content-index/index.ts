@@ -21,6 +21,7 @@ export interface ContentIndex {
 
 export async function CreateContentIndex(filepath: string) : Promise<ContentIndex> {
     const index = await readIndex(filepath);
+    let freeSpaces : Span[]|null = null;
 
     const offset = (key: Buffer|string) : number => {
         const keyStr = key instanceof Buffer ? key.toString('base64') : key;
@@ -29,6 +30,7 @@ export async function CreateContentIndex(filepath: string) : Promise<ContentInde
     const setOffset = async (key: Buffer|string, offset: number) : Promise<void> => {
         const keyStr = key instanceof Buffer ? key.toString('base64') : key;
         index.set(keyStr, offset);
+        freeSpaces = null;
         await writeIndex(filepath, index);
     };
     const contains = (key: Buffer|string) : boolean => {
@@ -39,10 +41,13 @@ export async function CreateContentIndex(filepath: string) : Promise<ContentInde
         const keyStr = key instanceof Buffer ? key.toString('base64') : key;
         const done = index.delete(keyStr);
         await writeIndex(filepath, index);
+        freeSpaces = null;
         return done;
     };
-    const spaces = () : Promise<Array<Span>> => {
-        return collectSpaces(filepath, index);
+    const spaces = async () : Promise<Array<Span>> => {
+        if (freeSpaces) return freeSpaces;
+        freeSpaces = await collectSpaces(filepath, index);
+        return freeSpaces;
     };
 
     return {

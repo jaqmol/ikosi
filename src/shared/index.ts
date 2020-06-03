@@ -5,24 +5,49 @@ export interface Span {
     length: number
 }
 
+// export async function collectSpaces(filepath: string, index: Map<string, number>) : Promise<Span[]> {
+//     const chunkSpansMap = await collectChunkSpans(filepath, index);
+//     const chunkKeysAndValues = Array.from<[string, Span[]]>(chunkSpansMap.entries());
+//     const chunkSpans = chunkKeysAndValues.reduce<Span[]>((acc, [_, spans]) => {
+//         acc.push(...spans);
+//         return acc;
+//     }, []);
+//     chunkSpans.sort((a, b) => {
+//         if (a.offset < b.offset) return -1;
+//         if (a.offset > b.offset) return 1;
+//         return 0;
+//     });
+//     const lastIndex = chunkSpans.length - 1;
+//     const spaces : Span[] = [];
+//     for (let i = 0; i < chunkSpans.length; i++) {
+//         if (i < lastIndex) {
+//             const a = chunkSpans[i];
+//             const b = chunkSpans[i + 1];
+//             const offset = a.offset + a.length;
+//             const length = b.offset - offset;
+//             spaces.push({offset, length});
+//         }
+//     }
+//     return spaces;
+// }
+
 export async function collectSpaces(filepath: string, index: Map<string, number>) : Promise<Span[]> {
-    const chunkSpansMap = await collectChunkSpans(filepath, index);
-    const chunkKeysAndValues = Array.from<[string, Span[]]>(chunkSpansMap.entries());
-    const chunkSpans = chunkKeysAndValues.reduce<Span[]>((acc, [_, spans]) => {
-        acc.push(...spans);
+    const chunkSpans = await collectSpans(filepath, Array.from<number>(index.values()));
+    const spans = chunkSpans.reduce<Span[]>((acc, s) => {
+        acc.push(...s);
         return acc;
     }, []);
-    chunkSpans.sort((a, b) => {
+    spans.sort((a, b) => {
         if (a.offset < b.offset) return -1;
         if (a.offset > b.offset) return 1;
         return 0;
     });
-    const lastIndex = chunkSpans.length - 1;
+    const lastIndex = spans.length - 1;
     const spaces : Span[] = [];
-    for (let i = 0; i < chunkSpans.length; i++) {
+    for (let i = 0; i < spans.length; i++) {
         if (i < lastIndex) {
-            const a = chunkSpans[i];
-            const b = chunkSpans[i + 1];
+            const a = spans[i];
+            const b = spans[i + 1];
             const offset = a.offset + a.length;
             const length = b.offset - offset;
             spaces.push({offset, length});
@@ -31,16 +56,71 @@ export async function collectSpaces(filepath: string, index: Map<string, number>
     return spaces;
 }
 
-export async function collectChunkSpans(filepath: string, index: Map<string, number>) : Promise<Map<string, Span[]>> {
+// export async function collectChunkSpans(filepath: string, index: Map<string, number>) : Promise<Map<string, Span[]>> {
+//     const fd = await openFileForReading(filepath);
+//     const inputKeysAndValues = Array.from<[string, number]>(index.entries());
+//     const promises = inputKeysAndValues.map<Promise<[string, Span[]]>>(async ([key, offset]) => {
+//         const spans = await followChunk(fd, offset);
+//         return [key, spans];
+//     });
+//     const outputKeysAndValues = await Promise.all(promises);
+//     await closeFile(fd);
+//     return new Map(outputKeysAndValues);
+// }
+
+export async function collectSpans(filepath: string, startOffsets: number[]) : Promise<Span[][]> {
     const fd = await openFileForReading(filepath);
-    const inputKeysAndValues = Array.from<[string, number]>(index.entries());
-    const promises = inputKeysAndValues.map<Promise<[string, Span[]]>>(async ([key, offset]) => {
-        const spans = await followChunk(fd, offset);
-        return [key, spans];
-    });
-    const outputKeysAndValues = await Promise.all(promises);
+    const promises = startOffsets.map<Promise<Span[]>>(async offset => followChunk(fd, offset));
     await closeFile(fd);
-    return new Map(outputKeysAndValues);
+    return Promise.all(promises);
+}
+
+export interface FindSpacesResult {
+    findings: Span[],
+    spaces: Span[],
+    remainder: number,
+}
+
+// TODO: USE
+export function findSpaces(bufferLength: number, inputSpaces: Span[]) : FindSpacesResult {
+    const spaces = [...inputSpaces];
+    let bufferIndex = 0;
+    const fittingSpaceIndex = (requiredLength: number) => {
+        let divergence = -1;
+        let absDivergence = -1;
+        let index = -1;
+        for (let i = 0; i < spaces.length; i++) {
+            const s = spaces[i];
+            if (i === 0) {
+                divergence = requiredLength - s.length;
+                absDivergence = Math.abs(divergence);
+                index = i;
+            } else {
+                const div = requiredLength - s.length;
+                const absDiv = Math.abs(div);
+                if (absDivergence > absDiv) {
+                    divergence = div;
+                    absDivergence = absDiv;
+                    index = i;
+                }
+            }
+            if (divergence === 0) break;
+        }
+        return index;
+    };
+
+    const findings : Span[] = [];
+    let remainder: number;
+    while (bufferIndex < bufferLength) {
+        remainder = bufferLength - bufferIndex;
+        const fi = fittingSpaceIndex(remainder);
+        if (fi === -1) break;
+        const s = spaces.splice(fi, 1)[1];
+        findings.push(s);
+        bufferIndex += s.length;
+    }
+
+    return { findings, spaces, remainder };
 }
 
 export const openFileForReading = (filepath: string) => openFile(filepath, 'r');
