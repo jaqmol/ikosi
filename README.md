@@ -1,3 +1,9 @@
-# ikosi-2
+# ikosi
 
-test
+Single file data storage.
+
+## Guiding Principles
+
+- 1 file
+- Consistent
+- Compact

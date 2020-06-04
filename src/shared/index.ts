@@ -32,16 +32,7 @@ export interface Span {
 // }
 
 export async function collectSpaces(filepath: string, index: Map<string, number>) : Promise<Span[]> {
-    const chunkSpans = await collectSpans(filepath, Array.from<number>(index.values()));
-    const spans = chunkSpans.reduce<Span[]>((acc, s) => {
-        acc.push(...s);
-        return acc;
-    }, []);
-    spans.sort((a, b) => {
-        if (a.offset < b.offset) return -1;
-        if (a.offset > b.offset) return 1;
-        return 0;
-    });
+    const spans = await collectFlatSpans(filepath, index);
     const lastIndex = spans.length - 1;
     const spaces : Span[] = [];
     for (let i = 0; i < spans.length; i++) {
@@ -75,14 +66,16 @@ export async function collectSpans(filepath: string, startOffsets: number[]) : P
     return Promise.all(promises);
 }
 
-export interface FindSpacesResult {
-    findings: Span[],
-    spaces: Span[],
-    remainder: number,
+export async function collectFlatSpans(filepath: string, index: Map<string, number>) : Promise<Span[]> {
+    const chunkSpans = await collectSpans(filepath, Array.from<number>(index.values()));
+    const spans = chunkSpans.reduce<Span[]>((acc, s) => {
+        acc.push(...s);
+        return acc;
+    }, []);
+    return spans;
 }
 
-// TODO: USE
-export function findSpaces(bufferLength: number, inputSpaces: Span[]) : FindSpacesResult {
+export function findSpaces(bufferLength: number, inputSpaces: Span[]) : Span[] {
     const spaces = [...inputSpaces];
     let bufferIndex = 0;
     const fittingSpaceIndex = (requiredLength: number) => {
@@ -108,19 +101,16 @@ export function findSpaces(bufferLength: number, inputSpaces: Span[]) : FindSpac
         }
         return index;
     };
-
     const findings : Span[] = [];
-    let remainder: number;
     while (bufferIndex < bufferLength) {
-        remainder = bufferLength - bufferIndex;
-        const fi = fittingSpaceIndex(remainder);
+        const remainder = bufferLength - bufferIndex;
+        const fi = fittingSpaceIndex(remainder - 40);
         if (fi === -1) break;
         const s = spaces.splice(fi, 1)[1];
         findings.push(s);
-        bufferIndex += s.length;
+        bufferIndex += s.length - 40;
     }
-
-    return { findings, spaces, remainder };
+    return findings;
 }
 
 export const openFileForReading = (filepath: string) => openFile(filepath, 'r');
@@ -149,6 +139,15 @@ export function fileStats(filepath: string) : Promise<fs.Stats> {
         fs.stat(filepath, (err, stats) => {
             if (err) reject(err)
             else resolve(stats)
+        });
+    });
+}
+
+export function truncateFile(filepath: string, size: number) : Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        fs.truncate(filepath, size, err => {
+            if (err) reject(err)
+            else resolve()
         });
     });
 }
@@ -217,4 +216,52 @@ export function appendToFile(filepath: string, buffer: Buffer) : Promise<void> {
             else resolve();
         });
     });
+}
+
+export async function writeChunkedValueToFile(
+    filepath: string, 
+    spaces: Span[], 
+    value: Buffer,
+) : Promise<number> {
+    const findings = findSpaces(value.length, spaces);
+    if (findings.length) {
+        const firstChunkOffset = findings[0].offset;
+        const fd = await openFileForWriting(filepath);
+        let startIndex = 0;
+        let appendOffset = 20;
+        while (findings.length && (startIndex < value.length)) {
+            const span = findings.splice(0, 1)[0];
+            const usableLength = span.length - 40;
+            const endIndex = startIndex + usableLength;
+            const lengthStr = `${span.length}`.padStart(20, '0');
+            await writeToFile(fd, span.offset, Buffer.from(lengthStr));
+            const chunk = value.slice(startIndex, endIndex);
+            await writeToFile(fd, span.offset + 20, chunk);
+            value = value.slice(startIndex, endIndex);
+            const suffixOffset = span.offset + 20 + usableLength;
+            if (findings.length) {
+                const nextSpan = findings[0];
+                const continueOffsetStr = `${nextSpan.offset}`.padStart(20, '0');
+                await writeToFile(fd, suffixOffset, Buffer.from(continueOffsetStr));
+            } else if (value.length) {
+                const stats = await fileStats(filepath);
+                appendOffset = stats.size < 20 ? 20 : stats.size;
+                const appendOffsetStr = `${appendOffset}`.padStart(20, '0');
+                await writeToFile(fd, suffixOffset, Buffer.from(appendOffsetStr));
+            } else {
+                const endSuffix = ''.padStart(20, '0');
+                await writeToFile(fd, suffixOffset, Buffer.from(endSuffix));
+            }
+        }
+        await closeFile(fd);
+        if (value.length && appendOffset) {
+            await appendToFile(filepath, value);
+        }
+        return firstChunkOffset;
+    }
+    // else just append
+    const stats = await fileStats(filepath);
+    const offset = stats.size < 20 ? 20 : stats.size;
+    await appendToFile(filepath, value);
+    return offset;
 }

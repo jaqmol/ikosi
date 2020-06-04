@@ -1,6 +1,7 @@
 import {
     Span,
     collectSpaces,
+    collectFlatSpans,
     openFileForReading,
     readFromFile,
     readChunksFromFile,
@@ -17,6 +18,7 @@ export interface ContentIndex {
     contains(key: Buffer|string) : boolean
     remove(key: Buffer|string) : Promise<boolean>
     spaces() : Promise<Array<Span>>
+    spans() : Promise<Array<Span>>
 }
 
 export async function CreateContentIndex(filepath: string) : Promise<ContentIndex> {
@@ -49,6 +51,9 @@ export async function CreateContentIndex(filepath: string) : Promise<ContentInde
         freeSpaces = await collectSpaces(filepath, index);
         return freeSpaces;
     };
+    const spans = () : Promise<Array<Span>> => {
+        return collectFlatSpans(filepath, index);
+    };
 
     return {
         offset,
@@ -56,6 +61,7 @@ export async function CreateContentIndex(filepath: string) : Promise<ContentInde
         contains,
         remove,
         spaces,
+        spans,
     };
 }
 
