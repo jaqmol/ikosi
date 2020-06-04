@@ -9,7 +9,7 @@ import {
     writeChunkedValueToFile,
     openFileForWriting,
     writeToFile,
-} from '../shared';
+} from './shared';
 
 export interface ContentIndex {
     offset(key: Buffer|string) : number

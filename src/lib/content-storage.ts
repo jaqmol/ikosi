@@ -1,4 +1,4 @@
-import { ContentIndex } from '../content-index';
+import { ContentIndex } from './content-index';
 import { 
     openFileForReading,
     readChunksFromFile, 
@@ -6,16 +6,15 @@ import {
     closeFile,
     fileStats,
     truncateFile,
-} from '../shared';
+} from './shared';
 
-export interface KvApi {
+export interface ContentStorage {
     set(key: Buffer|string, value: Buffer|string) : Promise<void>
     get(key: Buffer|string) : Promise<Buffer>
-    contains(key: Buffer|string) : boolean
     remove(key: Buffer|string) : Promise<boolean>
 }
 
-export async function CreateKvApi(filepath: string, contentIndex: ContentIndex) : Promise<KvApi> {
+export async function CreateContentStorage(filepath: string, contentIndex: ContentIndex) : Promise<ContentStorage> {
     const set = async (key: Buffer|string, value: Buffer|string) : Promise<void> => {
         const buffValue = typeof value === 'string' ? Buffer.from(value) : value;
         const offset = await writeValue(filepath, contentIndex, buffValue);
@@ -26,9 +25,6 @@ export async function CreateKvApi(filepath: string, contentIndex: ContentIndex) 
         const offset = contentIndex.offset(key);
         return readValue(filepath, offset);
     };
-    const contains = (key: Buffer|string) : boolean => {
-        return contentIndex.contains(key);
-    };
     const remove = async (key: Buffer|string) : Promise<boolean> => {
         const done = await contentIndex.remove(key);
         await truncate(filepath, contentIndex);
@@ -37,7 +33,6 @@ export async function CreateKvApi(filepath: string, contentIndex: ContentIndex) 
     return {
         set,
         get,
-        contains,
         remove,
     };
 }
