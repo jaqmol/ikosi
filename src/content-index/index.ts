@@ -6,8 +6,7 @@ import {
     readFromFile,
     readChunksFromFile,
     closeFile,
-    fileStats,
-    appendToFile,
+    writeChunkedValueToFile,
     openFileForWriting,
     writeToFile,
 } from '../shared';
@@ -33,7 +32,8 @@ export async function CreateContentIndex(filepath: string) : Promise<ContentInde
         const keyStr = key instanceof Buffer ? key.toString('base64') : key;
         index.set(keyStr, offset);
         freeSpaces = null;
-        await writeIndex(filepath, index);
+        const sps = await spaces();
+        await writeIndex(filepath, index, sps);
     };
     const contains = (key: Buffer|string) : boolean => {
         const keyStr = key instanceof Buffer ? key.toString('base64') : key;
@@ -42,8 +42,9 @@ export async function CreateContentIndex(filepath: string) : Promise<ContentInde
     const remove = async (key: Buffer|string) : Promise<boolean> => {
         const keyStr = key instanceof Buffer ? key.toString('base64') : key;
         const done = index.delete(keyStr);
-        await writeIndex(filepath, index);
         freeSpaces = null;
+        const sps = await spaces();
+        await writeIndex(filepath, index, sps);
         return done;
     };
     const spaces = async () : Promise<Array<Span>> => {
@@ -75,13 +76,12 @@ async function readIndex(filepath: string) : Promise<Map<string, number>> {
     return new Map<string, number>(JSON.parse(indexString));
 }
 
-async function writeIndex(filepath: string, index: Map<string, number>) : Promise<void> {
-    const stats = await fileStats(filepath);
-    const indexOffsetStr = `${stats.size}`.padStart(20, '0');
+async function writeIndex(filepath: string, index: Map<string, number>, spaces: Span[]) : Promise<void> {
     const keysAndValues = [...index];
     const buffer = Buffer.from(JSON.stringify(keysAndValues));
-    await appendToFile(filepath, buffer);
+    const offset = await writeChunkedValueToFile(filepath, spaces, buffer);
+    const offsetStr = `${offset}`.padStart(20, '0');
     const fd = await openFileForWriting(filepath);
-    await writeToFile(fd, 0, Buffer.from(indexOffsetStr));
+    await writeToFile(fd, 0, Buffer.from(offsetStr));
     await closeFile(fd);
 }
