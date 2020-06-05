@@ -4,6 +4,7 @@ import {
     readChunksFromFile,
     yieldContentSpans,
     writeToEmptySpaces,
+    findFittingSpaces,
 } from './shared';
 import * as ikfs from './ikfs';
 
@@ -73,7 +74,8 @@ async function readIndex(filepath: string) : Promise<Map<string, number>> {
 async function writeIndex(filepath: string, index: Map<string, number>, emptySpaces: Span[]) : Promise<void> {
     const keysAndValues = [...index];
     let buffer = Buffer.from(JSON.stringify(keysAndValues));
-    const offset = await writeToEmptySpaces(filepath, buffer, emptySpaces);
+    const fittingSpaces = findFittingSpaces(buffer.length, emptySpaces);
+    const offset = await writeToEmptySpaces(filepath, buffer, fittingSpaces);
     const offsetStr = `${offset}`.padStart(20, '0');
     buffer = Buffer.from(offsetStr);
     const fd = await ikfs.openForWriting(filepath);

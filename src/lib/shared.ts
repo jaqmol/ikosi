@@ -42,44 +42,42 @@ export async function* yieldContentSpans(
     await ikfs.close(fd);
 }
 
-// TODO: INCORPORATE INTO WRITING PROCEDURES
-// export function findFittingSpaces(bufferLength: number, inputSpaces: Span[]) : Span[] {
-//     const spaces = [...inputSpaces];
-//     let bufferIndex = 0;
-//     const fittingSpaceIndex = (requiredLength: number) => {
-//         let divergence = -1;
-//         let absDivergence = -1;
-//         let index = -1;
-//         for (let i = 0; i < spaces.length; i++) {
-//             const s = spaces[i];
-//             if (i === 0) {
-//                 divergence = requiredLength - s.length;
-//                 absDivergence = Math.abs(divergence);
-//                 index = i;
-//             } else {
-//                 const div = requiredLength - s.length;
-//                 const absDiv = Math.abs(div);
-//                 if (absDivergence > absDiv) {
-//                     divergence = div;
-//                     absDivergence = absDiv;
-//                     index = i;
-//                 }
-//             }
-//             if (divergence === 0) break;
-//         }
-//         return index;
-//     };
-//     const findings : Span[] = [];
-//     while (bufferIndex < bufferLength) {
-//         const remainder = bufferLength - bufferIndex;
-//         const fi = fittingSpaceIndex(remainder - 40);
-//         if (fi === -1) break;
-//         const s = spaces.splice(fi, 1)[1];
-//         findings.push(s);
-//         bufferIndex += s.length - 40;
-//     }
-//     return findings;
-// }
+interface FittingSpaceFinding {
+    isPositive: boolean
+    divergence: number
+    index: number
+}
+
+export function findFittingSpaces(bufferLength: number, emptySpaces: Span[]) : Span[] {
+    const usableSpaces = emptySpaces.filter(ikfs.chunk.isSpaceUsable);
+    const contentSpans = usableSpaces.map(ikfs.chunk.contentSpan);
+    let bufferIndex = 0;
+    const contSpansReducer = (requiredLength: number) => 
+        (finding: FittingSpaceFinding, contentSpan: Span, index: number) => {
+            if (finding.divergence === 0) return finding;
+            const signedDivergence = requiredLength - contentSpan.length;
+            const divergence = Math.abs(signedDivergence);
+            const isPositive = signedDivergence >= 0;
+            return (index === 0) || 
+                (finding.divergence > divergence) ||
+                ( (finding.divergence === divergence) && !finding.isPositive && isPositive )
+                ? {isPositive, divergence, index}
+                : finding;
+        };
+    const findings : Span[] = [];
+    while (bufferIndex < bufferLength) {
+        const foundIndex = contentSpans.reduce<FittingSpaceFinding>(
+            contSpansReducer(bufferLength - bufferIndex),
+            {isPositive: false, divergence: -1, index: -1},
+        ).index;
+        if (foundIndex === -1) break;
+        const usableSpace = usableSpaces.splice(foundIndex, 1)[1];
+        const contentSpan = contentSpans.splice(foundIndex, 1)[1];
+        findings.push(usableSpace);
+        bufferIndex += contentSpan.length;
+    }
+    return findings;
+}
 
 export async function readChunksFromFile(fd: number, startOffset: number) : Promise<Buffer> {
     const acc : Buffer[] = [];

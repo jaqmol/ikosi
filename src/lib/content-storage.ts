@@ -2,6 +2,8 @@ import { ContentIndex } from './content-index';
 import { 
     readChunksFromFile,
     writeToEmptySpaces,
+    findFittingSpaces,
+    Span,
 } from './shared';
 import * as ikfs from './ikfs';
 
@@ -13,8 +15,9 @@ export interface ContentStorage {
 
 export async function CreateContentStorage(filepath: string, contentIndex: ContentIndex) : Promise<ContentStorage> {
     const set = async (key: Buffer|string, value: Buffer|string) : Promise<void> => {
-        const buffValue = typeof value === 'string' ? Buffer.from(value) : value;
-        const offset = await writeValue(filepath, contentIndex, buffValue);
+        const buffer = typeof value === 'string' ? Buffer.from(value) : value;
+        const emptySpaces = await contentIndex.spaces();
+        const offset = await writeValue(filepath, buffer, emptySpaces);
         await contentIndex.setOffset(key, offset);
         await truncate(filepath, contentIndex);
     };
@@ -41,9 +44,9 @@ async function readValue(filepath: string, offset: number) : Promise<Buffer> {
     return value;
 }
 
-async function writeValue(filepath: string, contentIndex: ContentIndex, value: Buffer) : Promise<number> {
-    const emptySpaces = await contentIndex.spaces();
-    return writeToEmptySpaces(filepath, value, emptySpaces);
+async function writeValue(filepath: string, buffer: Buffer, emptySpaces: Span[]) : Promise<number> {
+    const fittingSpaces = findFittingSpaces(buffer.length, emptySpaces);
+    return writeToEmptySpaces(filepath, buffer, fittingSpaces);
 }
 
 async function truncate(filepath: string, contentIndex: ContentIndex) : Promise<void> {
