@@ -29,7 +29,7 @@ export async function CreateIkosi(
     const storage = await CreateContentStorage(
         filepath, 
         index, 
-        fs.open, 
+        fsOpen, 
         fsRead, 
         fsStat, 
         fsWrite, 
