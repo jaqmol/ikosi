@@ -1,0 +1,23 @@
+{
+  "name": "ikosi",
+  "version": "1.0.0",
+  "description": "",
+  "jest": {
+    "rootDir": "build"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "build": "rimraf ./build && tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^25.2.3",
+    "@types/node": "^14.0.11",
+    "jest": "^26.0.1",
+    "rimraf": "^3.0.2",
+    "typescript": "^3.9.5"
+  }
+}
