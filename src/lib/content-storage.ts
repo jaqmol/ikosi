@@ -24,7 +24,7 @@ export interface ContentStorage {
     remove(key: Buffer|string) : Promise<boolean>
 }
 
-export async function CreateContentStorage(
+export async function MakeContentStorage(
     filepath: string, 
     contentIndex: ContentIndex,
     fsOpen: FSOpenFn,

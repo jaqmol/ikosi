@@ -27,7 +27,7 @@ export interface ContentIndex {
     spans() : Promise<Array<Span>>
 }
 
-export async function CreateContentIndex(
+export async function MakeContentIndex(
     filepath: string,
     fsOpen: FSOpenFn,
     fsRead: FSReadFn, 

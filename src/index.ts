@@ -1,5 +1,5 @@
-import { CreateContentIndex } from './lib/content-index';
-import { CreateContentStorage } from './lib/content-storage';
+import { MakeContentIndex } from './lib/content-index';
+import { MakeContentStorage } from './lib/content-storage';
 import fs from 'fs';
 
 export interface Ikosi {
@@ -9,7 +9,7 @@ export interface Ikosi {
     remove(key: Buffer|string) : Promise<boolean>
 }
 
-export async function CreateIkosi(
+export async function MakeIkosi(
     filepath: string,
     fsOpen = fs.open,
     fsRead = fs.read, 
@@ -18,7 +18,7 @@ export async function CreateIkosi(
     fsClose = fs.close,
     fsTruncate = fs.truncate,
 ) : Promise<Ikosi> {
-    const index = await CreateContentIndex(
+    const index = await MakeContentIndex(
         filepath, 
         fsOpen, 
         fsRead, 
@@ -26,7 +26,7 @@ export async function CreateIkosi(
         fsWrite, 
         fsClose,
     );
-    const storage = await CreateContentStorage(
+    const storage = await MakeContentStorage(
         filepath, 
         index, 
         fsOpen, 
