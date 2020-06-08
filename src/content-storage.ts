@@ -19,9 +19,9 @@ import {
 } from './ikfs';
 
 export interface ContentStorage {
-  set(key: Buffer | string, value: Buffer | string): Promise<void>;
-  get(key: Buffer | string): Promise<Buffer>;
-  remove(key: Buffer | string): Promise<boolean>;
+  set(key: Buffer|string, value: Buffer|string): Promise<void>;
+  get(key: Buffer|string): Promise<Buffer|undefined>;
+  remove(key: Buffer|string): Promise<boolean>;
 }
 
 export async function MakeContentStorage(
@@ -39,8 +39,8 @@ export async function MakeContentStorage(
   const readValue = ReadValueFn(fsOpen, fsRead, fsWrite, fsClose);
 
   const set = async (
-    key: Buffer | string,
-    value: Buffer | string
+    key: Buffer|string,
+    value: Buffer|string
   ): Promise<void> => {
     const buffer = typeof value === 'string' ? Buffer.from(value) : value;
     const emptySpaces = await contentIndex.spaces();
@@ -48,11 +48,11 @@ export async function MakeContentStorage(
     await contentIndex.setOffset(key, offset);
     await truncateIndex(filepath, contentIndex);
   };
-  const get = async (key: Buffer | string): Promise<Buffer> => {
+  const get = async (key: Buffer|string): Promise<Buffer|undefined> => {
     const offset = await contentIndex.offset(key);
-    return readValue(filepath, offset);
+    if (offset) return readValue(filepath, offset);
   };
-  const remove = async (key: Buffer | string): Promise<boolean> => {
+  const remove = async (key: Buffer|string): Promise<boolean> => {
     const done = await contentIndex.remove(key);
     await truncateIndex(filepath, contentIndex);
     return done;

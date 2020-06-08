@@ -1,12 +1,12 @@
-import { MakeContentIndex } from './lib/content-index';
-import { MakeContentStorage } from './lib/content-storage';
+import { MakeContentIndex } from './content-index';
+import { MakeContentStorage } from './content-storage';
 import fs from 'fs';
 
 export interface Ikosi {
-  set(key: Buffer | string, value: Buffer | string): Promise<void>;
-  get(key: Buffer | string): Promise<Buffer>;
-  contains(key: Buffer | string): Promise<boolean>;
-  remove(key: Buffer | string): Promise<boolean>;
+  set(key: Buffer|string, value: Buffer|string): Promise<void>;
+  get(key: Buffer|string): Promise<Buffer|undefined>;
+  contains(key: Buffer|string): Promise<boolean>;
+  remove(key: Buffer|string): Promise<boolean>;
 }
 
 export async function MakeIkosi(
@@ -37,16 +37,16 @@ export async function MakeIkosi(
     fsTruncate
   );
 
-  const set = (key: Buffer | string, value: Buffer | string): Promise<void> => {
+  const set = (key: Buffer|string, value: Buffer|string): Promise<void> => {
     return storage.set(key, value);
   };
-  const get = (key: Buffer | string): Promise<Buffer> => {
+  const get = (key: Buffer|string): Promise<Buffer|undefined> => {
     return storage.get(key);
   };
-  const contains = (key: Buffer | string): Promise<boolean> => {
+  const contains = (key: Buffer|string): Promise<boolean> => {
     return index.contains(key);
   };
-  const remove = (key: Buffer | string): Promise<boolean> => {
+  const remove = (key: Buffer|string): Promise<boolean> => {
     return storage.remove(key);
   };
   return {

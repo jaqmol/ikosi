@@ -88,8 +88,8 @@ interface FittingSpaceFinding {
 export const FindFittingSpacesFn = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
   const chunkFns = ChunkFns(fsRead, fsWrite);
   return (bufferLength: number, emptySpaces: Span[]): Span[] => {
-    const usableSpaces = emptySpaces.filter(chunkFns.isSpaceUsable);
-    const contentSpans = usableSpaces.map(chunkFns.contentSpan);
+    const usableSpaces = emptySpaces.filter(ChunkFns.isSpaceUsable);
+    const contentSpans = usableSpaces.map(ChunkFns.contentSpan);
     let bufferIndex = 0;
     const contSpansReducer = (requiredLength: number) => (
       finding: FittingSpaceFinding,
@@ -167,7 +167,7 @@ export const WriteToEmptySpacesFn = (
     const spacesLeft = [...emptySpaces];
     let bufferOffset = 0;
     const fd = await openForWritingFn(filepath);
-    let continuation: number;
+    let continuation: number = -1;
     while (spacesLeft.length && bufferOffset < buffer.length) {
       const space = spacesLeft.splice(0, 1)[0];
       if (spacesLeft.length) {

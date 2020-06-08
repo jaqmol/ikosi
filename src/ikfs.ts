@@ -22,37 +22,18 @@ export const ChunkFns = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
     });
     return Number.parseInt(buffer.toString(), 10);
   };
-  const isSpaceUsable = (space: Span): boolean => space.length >= 60;
-  const contentSpan = (space: Span): Span => ({
-    offset: space.offset + 20,
-    length: space.length - 40
-  });
-  const writeLength = async (
+  const writeNumber = async (
     fd: number,
-    length: number,
+    aNumber: number,
     filePosition: number
   ): Promise<void> => {
-    const lengthStr = `${length}`.padStart(20, '0');
-    const buffer = Buffer.from(lengthStr);
+    const aNumberStr = `${aNumber}`.padStart(20, '0');
+    const buffer = Buffer.from(aNumberStr);
     await writeBuffer(
       fd,
       buffer,
       { offset: 0, length: buffer.length },
-      filePosition
-    );
-  };
-  const writeContinuation = async (
-    fd: number,
-    continuationValue: number,
-    filePosition: number
-  ): Promise<void> => {
-    const continuationStr = `${continuationValue}`.padStart(20, '0');
-    const buffer = Buffer.from(continuationStr);
-    await writeBuffer(
-      fd,
-      buffer,
-      { offset: 0, length: buffer.length },
-      filePosition
+      filePosition,
     );
   };
   const writeToSpace = async (
@@ -62,13 +43,13 @@ export const ChunkFns = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
     space: Span,
     continuationValue: number
   ): Promise<number> => {
-    if (!isSpaceUsable(space)) return 0;
-    const fileContentSpan = contentSpan(space);
+    if (!ChunkFns.isSpaceUsable(space)) return 0;
+    const fileContentSpan = ChunkFns.contentSpan(space);
     let bufferRemainingLength = buffer.length - bufferOffset;
     if (bufferRemainingLength < fileContentSpan.length) {
       fileContentSpan.length = bufferRemainingLength;
     }
-    await writeLength(fd, fileContentSpan.length, space.offset);
+    await writeNumber(fd, fileContentSpan.length, space.offset);
     const bufferSpan = { offset: bufferOffset, length: fileContentSpan.length };
     const bytesWritten = await writeBuffer(
       fd,
@@ -80,9 +61,9 @@ export const ChunkFns = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
     const continuationFilePosition =
       fileContentSpan.offset + fileContentSpan.length;
     if (bufferRemainingLength === 0) {
-      writeContinuation(fd, 0, continuationFilePosition);
+      writeNumber(fd, 0, continuationFilePosition);
     } else {
-      writeContinuation(fd, continuationValue, continuationFilePosition);
+      writeNumber(fd, continuationValue, continuationFilePosition);
     }
     return bytesWritten;
   };
@@ -90,19 +71,28 @@ export const ChunkFns = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
     span,
     read,
     continuation,
-    isSpaceUsable,
-    contentSpan,
-    writeLength,
-    writeContinuation,
+    writeNumber,
     writeToSpace
   };
 };
+ChunkFns.isSpaceUsable = (space: Span): boolean => space.length >= 60;
+ChunkFns.contentSpan = (space: Span): Span => ({
+  offset: space.offset + 20,
+  length: space.length - 40
+});
 
 export type FSOpenFn = (
   path: string,
   flags: string,
   callback: (err: NodeJS.ErrnoException | null, fd: number) => void
 ) => void;
+// export interface FSOpenFn {
+//   (
+//     path: string,
+//     flags: string,
+//     callback: (err: NodeJS.ErrnoException | null, fd: number) => void,
+//   ) : void;
+// }
 export const OpenForReadingFn = (fsOpen: FSOpenFn) => (filepath: string) =>
   open(fsOpen, filepath, 'r');
 export const OpenForWritingFn = (fsOpen: FSOpenFn) => (filepath: string) =>

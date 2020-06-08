@@ -19,7 +19,7 @@ import {
 } from './ikfs';
 
 export interface ContentIndex {
-  offset(key: Buffer | string): Promise<number>;
+  offset(key: Buffer | string): Promise<number|undefined>;
   setOffset(key: Buffer | string, offset: number): Promise<void>;
   contains(key: Buffer | string): Promise<boolean>;
   remove(key: Buffer | string): Promise<boolean>;
@@ -47,7 +47,7 @@ export async function MakeContentIndex(
 
   const index = await readIndex(filepath);
   let freeSpaces: Span[] | null = null;
-  const offset = async (key: Buffer | string): Promise<number> => {
+  const offset = async (key: Buffer | string): Promise<number|undefined> => {
     const keyStr = key instanceof Buffer ? key.toString('base64') : key;
     return index.get(keyStr);
   };
