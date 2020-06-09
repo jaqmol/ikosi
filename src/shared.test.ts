@@ -59,14 +59,62 @@ test('Test YieldContentSpansFn', async () => {
     const fsRead = makeFsRead(fileBuffer);
     const fsClose = makeFsClose();
     const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
-    const acc : number[] = [];
+    const foundValueIndexes : number[] = [];
     for await (const span of yieldContentSpans('right', oddOffsets.values())) {
         const contentSpan = extractContentSpan(span);
         const buff = fileBuffer.slice(contentSpan.offset, contentSpan.offset + contentSpan.length);
         const value = buff.toString();
         const index = loremIpsum.indexOf(value);
-        acc.push(index);
+        foundValueIndexes.push(index);
     }
     expect(fsOpen.passed.filepath).toBe('right');
-    console.log(acc);
+    const uniqueFoundValueIndexes = [...(new Set(foundValueIndexes)).values()];
+    expect(uniqueFoundValueIndexes).toEqual(foundValueIndexes);
+    const nonNegativeFoundValueIndexes = uniqueFoundValueIndexes.filter(i => i > -1);
+    expect(nonNegativeFoundValueIndexes.length).toBe(loremIpsum.length);
+});
+
+test('Test FindEmptySpacesFn', async () => {
+    const fullFileBuffer = createContinuationFileBuffer();
+    const oddFullLoremIpsum = loremIpsum.filter(odd);
+    const oddFullFileBufferSpans = createFileBufferSpans(oddFullLoremIpsum);
+    const fileBufferSpans = oddFullFileBufferSpans.filter(even);
+    const index = new Map<string, number>(fileBufferSpans.map(
+        (span, index) => [`key:${index}`, span.offset],
+    ));
+    const fsOpen = makeFsOpen(33);
+    const fsRead = makeFsRead(fullFileBuffer);
+    const fsClose = makeFsClose();
+    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
+    const occupiedSpaces : Span[] = [];
+    for await (const space of yieldContentSpans('right', index.values())) {
+        occupiedSpaces.push(space);
+    }
+    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
+    const freeSpaces = await findEmptySpaces('right', index);
+    for (const freeSpace of freeSpaces) {
+        const freeSpaceEnd = freeSpace.offset + freeSpace.length;
+        for (const occSpace of occupiedSpaces) {
+            const occSpaceEnd = occSpace.offset + occSpace.length;
+            if (freeSpace.offset < occSpace.offset) {
+                expect(freeSpaceEnd).toBeLessThanOrEqual(occSpace.offset);
+            } else if (freeSpace.offset > occSpace.offset) {
+                expect(occSpaceEnd).toBeLessThanOrEqual(freeSpace.offset);
+            }
+        }
+    }
+});
+
+test('Test findFittingSpaces', async () => {
+    const fullFileBuffer = createContinuationFileBuffer();
+    const oddFullLoremIpsum = loremIpsum.filter(odd);
+    const oddFullFileBufferSpans = createFileBufferSpans(oddFullLoremIpsum);
+    const fileBufferSpans = oddFullFileBufferSpans.filter(even);
+    const index = new Map<string, number>(fileBufferSpans.map(
+        (span, index) => [`key:${index}`, span.offset],
+    ));
+    const fsOpen = makeFsOpen(33);
+    const fsRead = makeFsRead(fullFileBuffer);
+    const fsClose = makeFsClose();
+    // TODO: findFittingSpaces
 });
