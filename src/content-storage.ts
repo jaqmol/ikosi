@@ -2,7 +2,7 @@ import { ContentIndex } from './content-index';
 import {
   ReadChunksFromFileFn,
   WriteToEmptySpacesFn,
-  FindFittingSpacesFn,
+  findFittingSpaces,
   Span
 } from './shared';
 import {
@@ -19,9 +19,9 @@ import {
 } from './ikfs';
 
 export interface ContentStorage {
-  set(key: Buffer|string, value: Buffer|string): Promise<void>;
-  get(key: Buffer|string): Promise<Buffer|undefined>;
-  remove(key: Buffer|string): Promise<boolean>;
+  set(key: string, value: Buffer|string): Promise<void>;
+  get(key: string): Promise<Buffer|undefined>;
+  remove(key: string): Promise<boolean>;
 }
 
 export async function MakeContentStorage(
@@ -34,12 +34,12 @@ export async function MakeContentStorage(
   fsClose: FSCloseFn,
   fsTruncate: FSTruncateFn
 ): Promise<ContentStorage> {
-  const writeValue = WriteValueFn(fsOpen, fsRead, fsStats, fsWrite, fsClose);
+  const writeValue = WriteValueFn(fsOpen, fsStats, fsWrite, fsClose);
   const truncateIndex = TruncateIndexFn(fsStats, fsTruncate);
-  const readValue = ReadValueFn(fsOpen, fsRead, fsWrite, fsClose);
+  const readValue = ReadValueFn(fsOpen, fsRead, fsClose);
 
   const set = async (
-    key: Buffer|string,
+    key: string,
     value: Buffer|string
   ): Promise<void> => {
     const buffer = typeof value === 'string' ? Buffer.from(value) : value;
@@ -48,11 +48,11 @@ export async function MakeContentStorage(
     await contentIndex.setOffset(key, offset);
     await truncateIndex(filepath, contentIndex);
   };
-  const get = async (key: Buffer|string): Promise<Buffer|undefined> => {
+  const get = async (key: string): Promise<Buffer|undefined> => {
     const offset = await contentIndex.offset(key);
     if (offset) return readValue(filepath, offset);
   };
-  const remove = async (key: Buffer|string): Promise<boolean> => {
+  const remove = async (key: string): Promise<boolean> => {
     const done = await contentIndex.remove(key);
     await truncateIndex(filepath, contentIndex);
     return done;
@@ -64,14 +64,13 @@ export async function MakeContentStorage(
   };
 }
 
-const ReadValueFn = (
+export const ReadValueFn = (
   fsOpen: FSOpenFn,
   fsRead: FSReadFn,
-  fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ) => {
   const openForReadingFn = OpenForReadingFn(fsOpen);
-  const readChunksFromFile = ReadChunksFromFileFn(fsRead, fsWrite);
+  const readChunksFromFile = ReadChunksFromFileFn(fsRead);
   const closeFn = CloseFn(fsClose);
   return async (filepath: string, offset: number): Promise<Buffer> => {
     const fd = await openForReadingFn(filepath);
@@ -81,21 +80,13 @@ const ReadValueFn = (
   };
 };
 
-const WriteValueFn = (
+export const WriteValueFn = (
   fsOpen: FSOpenFn,
-  fsRead: FSReadFn,
   fsStats: FSStatsFn,
   fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ) => {
-  const findFittingSpaces = FindFittingSpacesFn(fsRead, fsWrite);
-  const writeToEmptySpaces = WriteToEmptySpacesFn(
-    fsOpen,
-    fsRead,
-    fsStats,
-    fsWrite,
-    fsClose
-  );
+  const writeToEmptySpaces = WriteToEmptySpacesFn(fsOpen, fsStats, fsWrite, fsClose);
   return async (
     filepath: string,
     buffer: Buffer,
@@ -106,7 +97,7 @@ const WriteValueFn = (
   };
 };
 
-const TruncateIndexFn = (fsStats: FSStatsFn, fsTruncate: FSTruncateFn) => {
+export const TruncateIndexFn = (fsStats: FSStatsFn, fsTruncate: FSTruncateFn) => {
   const sizeFn = SizeFn(fsStats);
   const truncateFn = TruncateFn(fsTruncate);
   return async (

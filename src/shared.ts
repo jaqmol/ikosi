@@ -3,7 +3,10 @@ import {
   OpenForWritingFn,
   CloseFn,
   SizeFn,
-  ChunkFns,
+  ReadChunkFns,
+  WriteChunkFns,
+  isSpanUsableForContent,
+  extractContentSpan,
   FSOpenFn,
   FSReadFn,
   FSStatsFn,
@@ -19,15 +22,9 @@ export interface Span {
 export const FindEmptySpacesFn = (
   fsOpen: FSOpenFn,
   fsRead: FSReadFn,
-  fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ) => {
-  const yieldContentSpans = YieldContentSpansFn(
-    fsOpen,
-    fsRead,
-    fsWrite,
-    fsClose
-  );
+  const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
   return async (
     filepath: string,
     index: Map<string, number>
@@ -59,12 +56,11 @@ export const FindEmptySpacesFn = (
 export const YieldContentSpansFn = (
   fsOpen: FSOpenFn,
   fsRead: FSReadFn,
-  fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ) => {
   const openForReadingFn = OpenForReadingFn(fsOpen);
   const closeFn = CloseFn(fsClose);
-  const yieldChunkSpans = YieldChunkSpansFn(fsRead, fsWrite);
+  const yieldChunkSpans = YieldChunkSpansFn(fsRead);
   return async function*(
     filepath: string,
     forOffsets: IterableIterator<number>
@@ -85,64 +81,61 @@ interface FittingSpaceFinding {
   index: number;
 }
 
-export const FindFittingSpacesFn = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
-  const chunkFns = ChunkFns(fsRead, fsWrite);
-  return (bufferLength: number, emptySpaces: Span[]): Span[] => {
-    const usableSpaces = emptySpaces.filter(ChunkFns.isSpaceUsable);
-    const contentSpans = usableSpaces.map(ChunkFns.contentSpan);
-    let bufferIndex = 0;
-    const contSpansReducer = (requiredLength: number) => (
-      finding: FittingSpaceFinding,
-      contentSpan: Span,
-      index: number
-    ) => {
-      if (finding.divergence === 0) return finding;
-      const signedDivergence = requiredLength - contentSpan.length;
-      const divergence = Math.abs(signedDivergence);
-      const isPositive = signedDivergence >= 0;
-      return index === 0 ||
-        finding.divergence > divergence ||
-        (finding.divergence === divergence && !finding.isPositive && isPositive)
-        ? { isPositive, divergence, index }
-        : finding;
-    };
-    const findings: Span[] = [];
-    while (bufferIndex < bufferLength) {
-      const foundIndex = contentSpans.reduce<FittingSpaceFinding>(
-        contSpansReducer(bufferLength - bufferIndex),
-        { isPositive: false, divergence: -1, index: -1 }
-      ).index;
-      if (foundIndex === -1) break;
-      const usableSpace = usableSpaces.splice(foundIndex, 1)[1];
-      const contentSpan = contentSpans.splice(foundIndex, 1)[1];
-      findings.push(usableSpace);
-      bufferIndex += contentSpan.length;
-    }
-    return findings;
+export const findFittingSpaces = (bufferLength: number, emptySpaces: Span[]): Span[] => {
+  const usableSpaces = emptySpaces.filter(isSpanUsableForContent);
+  const contentSpans = usableSpaces.map(extractContentSpan);
+  let bufferIndex = 0;
+  const contSpansReducer = (requiredLength: number) => (
+    finding: FittingSpaceFinding,
+    contentSpan: Span,
+    index: number
+  ) => {
+    if (finding.divergence === 0) return finding;
+    const signedDivergence = requiredLength - contentSpan.length;
+    const divergence = Math.abs(signedDivergence);
+    const isPositive = signedDivergence >= 0;
+    return index === 0 ||
+      finding.divergence > divergence ||
+      (finding.divergence === divergence && !finding.isPositive && isPositive)
+      ? { isPositive, divergence, index }
+      : finding;
   };
+  const findings: Span[] = [];
+  while (bufferIndex < bufferLength) {
+    const foundIndex = contentSpans.reduce<FittingSpaceFinding>(
+      contSpansReducer(bufferLength - bufferIndex),
+      { isPositive: false, divergence: -1, index: -1 }
+    ).index;
+    if (foundIndex === -1) break;
+    const usableSpace = usableSpaces.splice(foundIndex, 1)[1];
+    const contentSpan = contentSpans.splice(foundIndex, 1)[1];
+    findings.push(usableSpace);
+    bufferIndex += contentSpan.length;
+  }
+  return findings;
 };
 
-export const ReadChunksFromFileFn = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
-  const chunkFns = ChunkFns(fsRead, fsWrite);
-  const yieldChunkSpans = YieldChunkSpansFn(fsRead, fsWrite);
+export const ReadChunksFromFileFn = (fsRead: FSReadFn) => {
+  const readChunk = ReadChunkFns(fsRead);
+  const yieldChunkSpans = YieldChunkSpansFn(fsRead);
   return async (fd: number, startOffset: number): Promise<Buffer> => {
     const acc: Buffer[] = [];
     for await (const span of yieldChunkSpans(fd, startOffset)) {
-      const chunk = await chunkFns.read(fd, span);
+      const chunk = await readChunk.content(fd, span);
       acc.push(chunk);
     }
     return Buffer.concat(acc);
   };
 };
 
-export const YieldChunkSpansFn = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
-  const chunkFns = ChunkFns(fsRead, fsWrite);
+export const YieldChunkSpansFn = (fsRead: FSReadFn) => {
+  const readChunk = ReadChunkFns(fsRead);
   return async function*(fd: number, startOffset: number) {
     let offset = startOffset;
     while (offset > -1) {
-      const span = await chunkFns.span(fd, offset);
+      const span = await readChunk.span(fd, offset);
       yield span;
-      const continuation = await chunkFns.continuation(fd, span);
+      const continuation = await readChunk.continuation(fd, span);
       offset = continuation || -1;
     }
   };
@@ -150,14 +143,13 @@ export const YieldChunkSpansFn = (fsRead: FSReadFn, fsWrite: FSWriteFn) => {
 
 export const WriteToEmptySpacesFn = (
   fsOpen: FSOpenFn,
-  fsRead: FSReadFn,
   fsStats: FSStatsFn,
   fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ) => {
   const openForWritingFn = OpenForWritingFn(fsOpen);
   const sizeFn = SizeFn(fsStats);
-  const chunkFns = ChunkFns(fsRead, fsWrite);
+  const writeChunk = WriteChunkFns(fsWrite);
   const closeFn = CloseFn(fsClose);
   return async (
     filepath: string,
@@ -175,7 +167,7 @@ export const WriteToEmptySpacesFn = (
       } else {
         continuation = await sizeFn(filepath);
       }
-      const bytesWritten = await chunkFns.writeToSpace(
+      const bytesWritten = await writeChunk.toSpace(
         fd,
         buffer,
         bufferOffset,
@@ -192,7 +184,7 @@ export const WriteToEmptySpacesFn = (
         offset: continuation,
         length: buffer.length - bufferOffset + 40
       };
-      await chunkFns.writeToSpace(fd, buffer, bufferOffset, space, 0);
+      await writeChunk.toSpace(fd, buffer, bufferOffset, space, 0);
     }
     await closeFn(fd);
     if (emptySpaces.length) return emptySpaces[0].offset;

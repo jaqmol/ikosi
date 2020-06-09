@@ -4,7 +4,7 @@ import {
   ReadChunksFromFileFn,
   YieldContentSpansFn,
   WriteToEmptySpacesFn,
-  FindFittingSpacesFn
+  findFittingSpaces,
 } from './shared';
 import {
   OpenForReadingFn,
@@ -19,10 +19,11 @@ import {
 } from './ikfs';
 
 export interface ContentIndex {
-  offset(key: Buffer | string): Promise<number|undefined>;
-  setOffset(key: Buffer | string, offset: number): Promise<void>;
-  contains(key: Buffer | string): Promise<boolean>;
-  remove(key: Buffer | string): Promise<boolean>;
+  keys() : AsyncGenerator<string, void, unknown>;
+  offset(key: string): Promise<number|undefined>;
+  setOffset(key: string, offset: number): Promise<void>;
+  contains(key: string): Promise<boolean>;
+  remove(key: string): Promise<boolean>;
   spaces(): Promise<Span[]>;
   spans(): Promise<Span[]>;
 }
@@ -35,38 +36,29 @@ export async function MakeContentIndex(
   fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ): Promise<ContentIndex> {
-  const readIndex = ReadIndexFn(fsOpen, fsRead, fsWrite, fsClose);
-  const writeIndex = WriteIndexFn(fsOpen, fsRead, fsStats, fsWrite, fsClose);
-  const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsWrite, fsClose);
+  const readIndex = ReadIndexFn(fsOpen, fsRead, fsClose);
+  const writeIndex = WriteIndexFn(fsOpen, fsStats, fsWrite, fsClose);
+  const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
   const yieldContentSpans = YieldContentSpansFn(
     fsOpen,
     fsRead,
-    fsWrite,
     fsClose
   );
 
   const index = await readIndex(filepath);
   let freeSpaces: Span[] | null = null;
-  const offset = async (key: Buffer | string): Promise<number|undefined> => {
-    const keyStr = key instanceof Buffer ? key.toString('base64') : key;
-    return index.get(keyStr);
-  };
-  const setOffset = async (
-    key: Buffer | string,
-    value: number
-  ): Promise<void> => {
-    const keyStr = key instanceof Buffer ? key.toString('base64') : key;
-    index.set(keyStr, value);
+  async function* keys() {
+    for (let k of index.keys()) yield k;
+  }
+  const offset = async (key: string): Promise<number|undefined> => index.get(key);
+  const setOffset = async (key: string, value: number): Promise<void> => {
+    index.set(key, value);
     freeSpaces = null;
     await writeIndex(filepath, index, await spaces());
   };
-  const contains = async (key: Buffer | string): Promise<boolean> => {
-    const keyStr = key instanceof Buffer ? key.toString('base64') : key;
-    return index.has(keyStr);
-  };
-  const remove = async (key: Buffer | string): Promise<boolean> => {
-    const keyStr = key instanceof Buffer ? key.toString('base64') : key;
-    const done = index.delete(keyStr);
+  const contains = async (key: string): Promise<boolean> => index.has(key);
+  const remove = async (key: string): Promise<boolean> => {
+    const done = index.delete(key);
     freeSpaces = null;
     await writeIndex(filepath, index, await spaces());
     return done;
@@ -84,6 +76,7 @@ export async function MakeContentIndex(
     return values;
   };
   return {
+    keys,
     offset,
     setOffset,
     contains,
@@ -93,14 +86,13 @@ export async function MakeContentIndex(
   };
 }
 
-const ReadIndexFn = (
+export const ReadIndexFn = (
   fsOpen: FSOpenFn,
   fsRead: FSReadFn,
-  fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ) => {
   const openForReadingFn = OpenForReadingFn(fsOpen);
-  const readChunksFromFile = ReadChunksFromFileFn(fsRead, fsWrite);
+  const readChunksFromFile = ReadChunksFromFileFn(fsRead);
   const closeFn = CloseFn(fsClose);
 
   return async (filepath: string): Promise<Map<string, number>> => {
@@ -112,18 +104,15 @@ const ReadIndexFn = (
   };
 };
 
-const WriteIndexFn = (
+export const WriteIndexFn = (
   fsOpen: FSOpenFn,
-  fsRead: FSReadFn,
   fsStats: FSStatsFn,
   fsWrite: FSWriteFn,
   fsClose: FSCloseFn
 ) => {
   const openForWritingFn = OpenForWritingFn(fsOpen);
-  const findFittingSpaces = FindFittingSpacesFn(fsRead, fsWrite);
   const writeToEmptySpaces = WriteToEmptySpacesFn(
     fsOpen,
-    fsRead,
     fsStats,
     fsWrite,
     fsClose

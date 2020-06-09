@@ -3,10 +3,11 @@ import { MakeContentStorage } from './content-storage';
 import fs from 'fs';
 
 export interface Ikosi {
-  set(key: Buffer|string, value: Buffer|string): Promise<void>;
-  get(key: Buffer|string): Promise<Buffer|undefined>;
-  contains(key: Buffer|string): Promise<boolean>;
-  remove(key: Buffer|string): Promise<boolean>;
+  keys() : AsyncGenerator<string, void, unknown>;
+  set(key: string, value: Buffer|string): Promise<void>;
+  get(key: string): Promise<Buffer|undefined>;
+  contains(key: string): Promise<boolean>;
+  remove(key: string): Promise<boolean>;
 }
 
 export async function MakeIkosi(
@@ -36,20 +37,22 @@ export async function MakeIkosi(
     fsClose,
     fsTruncate
   );
-
-  const set = (key: Buffer|string, value: Buffer|string): Promise<void> => {
+  
+  const keys = () => index.keys();
+  const set = (key: string, value: Buffer|string): Promise<void> => {
     return storage.set(key, value);
   };
-  const get = (key: Buffer|string): Promise<Buffer|undefined> => {
+  const get = (key: string): Promise<Buffer|undefined> => {
     return storage.get(key);
   };
-  const contains = (key: Buffer|string): Promise<boolean> => {
+  const contains = (key: string): Promise<boolean> => {
     return index.contains(key);
   };
-  const remove = (key: Buffer|string): Promise<boolean> => {
+  const remove = (key: string): Promise<boolean> => {
     return storage.remove(key);
   };
   return {
+    keys,
     set,
     get,
     contains,
