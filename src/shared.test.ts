@@ -60,14 +60,14 @@ test('Test YieldContentSpansFn', async () => {
     const fsClose = makeFsClose();
     const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
     const foundValueIndexes : number[] = [];
-    for await (const span of yieldContentSpans('right', oddOffsets.values())) {
+    for await (const span of yieldContentSpans('correct', oddOffsets.values())) {
         const contentSpan = extractContentSpan(span);
         const buff = fileBuffer.slice(contentSpan.offset, contentSpan.offset + contentSpan.length);
         const value = buff.toString();
         const index = loremIpsum.indexOf(value);
         foundValueIndexes.push(index);
     }
-    expect(fsOpen.passed.filepath).toBe('right');
+    expect(fsOpen.passed.filepath).toBe('correct');
     const uniqueFoundValueIndexes = [...(new Set(foundValueIndexes)).values()];
     expect(uniqueFoundValueIndexes).toEqual(foundValueIndexes);
     const nonNegativeFoundValueIndexes = uniqueFoundValueIndexes.filter(i => i > -1);
@@ -87,11 +87,11 @@ test('Test FindEmptySpacesFn', async () => {
     const fsClose = makeFsClose();
     const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
     const occupiedSpaces : Span[] = [];
-    for await (const space of yieldContentSpans('right', index.values())) {
+    for await (const space of yieldContentSpans('correct', index.values())) {
         occupiedSpaces.push(space);
     }
     const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
-    const freeSpaces = await findEmptySpaces('right', index);
+    const freeSpaces = await findEmptySpaces('correct', index);
     for (const freeSpace of freeSpaces) {
         const freeSpaceEnd = freeSpace.offset + freeSpace.length;
         for (const occSpace of occupiedSpaces) {
@@ -116,5 +116,32 @@ test('Test findFittingSpaces', async () => {
     const fsOpen = makeFsOpen(33);
     const fsRead = makeFsRead(fullFileBuffer);
     const fsClose = makeFsClose();
-    // TODO: findFittingSpaces
+    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
+    const occupiedSpaces : Span[] = [];
+    for await (const space of yieldContentSpans('correct', index.values())) {
+        occupiedSpaces.push(space);
+    }
+    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
+    const freeSpaces = await findEmptySpaces('correct', index);
+    for (const freeSpace of freeSpaces) {
+        const freeContentSpan = extractContentSpan(freeSpace);
+        const findings = findFittingSpaces(freeContentSpan.length, freeSpaces);
+        expect(findings.length).toBe(1);
+        expect(findings[0]).toEqual(freeSpace);
+    }
+    const overflowLengthA = extractContentSpan({offset: 0, length: freeSpaces[0].length}).length + 
+                            extractContentSpan({offset: 0, length: freeSpaces[1].length}).length;
+    const overflowLengthB = extractContentSpan({offset: 0, length: freeSpaces[2].length}).length +
+                            extractContentSpan({offset: 0, length: freeSpaces[3].length}).length + 
+                            extractContentSpan({offset: 0, length: freeSpaces[4].length}).length;
+    const freeSpacesA = findFittingSpaces(overflowLengthA, freeSpaces);
+    expect(freeSpacesA.length).toBe(2);
+    expect(freeSpacesA).toEqual(freeSpaces.slice(0, 2));
+    const leftFreeSpaces = freeSpaces.slice(2);
+    const sortFn = (a: Span, b: Span) : number => a.offset - b.offset;
+    leftFreeSpaces.sort(sortFn);
+    const freeSpacesB = findFittingSpaces(overflowLengthB, leftFreeSpaces);
+    freeSpacesB.sort(sortFn);
+    expect(freeSpacesB.length).toBe(3);
+    expect(freeSpacesB).toEqual(leftFreeSpaces);
 });

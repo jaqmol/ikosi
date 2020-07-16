@@ -107,8 +107,8 @@ export const findFittingSpaces = (bufferLength: number, emptySpaces: Span[]): Sp
       { isPositive: false, divergence: -1, index: -1 }
     ).index;
     if (foundIndex === -1) break;
-    const usableSpace = usableSpaces.splice(foundIndex, 1)[1];
-    const contentSpan = contentSpans.splice(foundIndex, 1)[1];
+    const usableSpace = usableSpaces.splice(foundIndex, 1)[0];
+    const contentSpan = contentSpans.splice(foundIndex, 1)[0];
     findings.push(usableSpace);
     bufferIndex += contentSpan.length;
   }
