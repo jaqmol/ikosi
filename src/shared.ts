@@ -155,7 +155,8 @@ export const WriteToEmptySpacesFn = (
     filepath: string,
     buffer: Buffer,
     emptySpaces: Span[]
-  ): Promise<number> => {
+  ): Promise<Span[]> => {
+    const occupiedSpaces: Span[] = [];
     const spacesLeft = [...emptySpaces];
     let bufferOffset = 0;
     const fd = await openForWritingFn(filepath);
@@ -175,6 +176,7 @@ export const WriteToEmptySpacesFn = (
         continuation
       );
       bufferOffset += bytesWritten;
+      occupiedSpaces.push(space);
     }
     if (bufferOffset < buffer.length) {
       if (!continuation) {
@@ -185,9 +187,9 @@ export const WriteToEmptySpacesFn = (
         length: buffer.length - bufferOffset + 40
       };
       await writeChunk.toSpace(fd, buffer, bufferOffset, space, 0);
+      occupiedSpaces.push(space);
     }
     await closeFn(fd);
-    if (emptySpaces.length) return emptySpaces[0].offset;
-    else return continuation;
+    return occupiedSpaces;
   };
 };

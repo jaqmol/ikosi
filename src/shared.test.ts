@@ -5,8 +5,11 @@ import {
     odd,
     createContinuationFileBuffer,
     makeFsOpen,
+    makeFsStats,
     makeFsRead,
-    makeFsClose
+    makeFsWrite,
+    makeFsClose,
+    testStatsValue,
 } from './test-utils';
 import { extractContentSpan } from './ikfs';
 import {
@@ -144,4 +147,49 @@ test('Test findFittingSpaces', async () => {
     freeSpacesB.sort(sortFn);
     expect(freeSpacesB.length).toBe(3);
     expect(freeSpacesB).toEqual(leftFreeSpaces);
+});
+
+test('Test ReadChunksFromFileFn', async () => {
+    const fullFileBuffer = createContinuationFileBuffer();
+    const fsRead = makeFsRead(fullFileBuffer);
+    const readChunksFromFile = ReadChunksFromFileFn(fsRead);
+    const dataBuff = await readChunksFromFile(33, 0);
+    const result = dataBuff.toString();
+    const expected = loremIpsum[1] + loremIpsum[0];
+    expect(result).toBe(expected);
+});
+
+test('Test WriteToEmptySpacesFn', async () => {
+    const fullFileBuffer = createContinuationFileBuffer();
+    const oddFullLoremIpsum = loremIpsum.filter(odd);
+    const oddFullFileBufferSpans = createFileBufferSpans(oddFullLoremIpsum);
+    const fileBufferSpans = oddFullFileBufferSpans.filter(even);
+    const index = new Map<string, number>(fileBufferSpans.map(
+        (span, index) => [`key:${index}`, span.offset],
+    ));
+    const fsOpen = makeFsOpen(33);
+    const fsWrite = makeFsWrite(fullFileBuffer);
+    const fsStats = makeFsStats(() => {
+        const s =  {
+            ...testStatsValue,
+            size: fsWrite.fileBuffer().length,
+        };
+        return s;
+    });
+    let fsRead = makeFsRead(fullFileBuffer);
+    const fsClose = makeFsClose();
+    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
+    const writeToEmptySpaces = WriteToEmptySpacesFn(fsOpen, fsStats, fsWrite, fsClose);
+    const freeSpaces = await findEmptySpaces('correct', index);
+    let testContent = '';
+    for (let i = loremIpsum.length - 1; i > -1; i--) {
+        testContent += loremIpsum[i];
+    }
+    const testContentBuffer = Buffer.from(testContent);
+    await writeToEmptySpaces('correct', testContentBuffer, freeSpaces);
+    fsRead = makeFsRead(fsWrite.fileBuffer());
+    const readChunksFromFile = ReadChunksFromFileFn(fsRead);
+    const dataBuff = await readChunksFromFile(33, freeSpaces[0].offset);
+    const result = dataBuff.toString();
+    expect(result).toBe(testContent);
 });

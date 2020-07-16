@@ -44,8 +44,8 @@ export async function MakeContentStorage(
   ): Promise<void> => {
     const buffer = typeof value === 'string' ? Buffer.from(value) : value;
     const emptySpaces = await contentIndex.spaces();
-    const offset = await writeValue(filepath, buffer, emptySpaces);
-    await contentIndex.setOffset(key, offset);
+    const occupiedSpaces = await writeValue(filepath, buffer, emptySpaces);
+    await contentIndex.setOffset(key, occupiedSpaces[0].offset);
     await truncateIndex(filepath, contentIndex);
   };
   const get = async (key: string): Promise<Buffer|undefined> => {
@@ -91,7 +91,7 @@ export const WriteValueFn = (
     filepath: string,
     buffer: Buffer,
     emptySpaces: Span[]
-  ): Promise<number> => {
+  ): Promise<Span[]> => {
     const fittingSpaces = findFittingSpaces(buffer.length, emptySpaces);
     return writeToEmptySpaces(filepath, buffer, fittingSpaces);
   };
