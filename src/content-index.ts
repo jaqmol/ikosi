@@ -15,7 +15,8 @@ import {
   FSReadFn,
   FSStatsFn,
   FSWriteFn,
-  FSCloseFn
+  FSCloseFn,
+  ReadFn,
 } from './ikfs';
 
 export interface ContentIndex {
@@ -38,12 +39,8 @@ export async function MakeContentIndex(
 ): Promise<ContentIndex> {
   const readIndex = ReadIndexFn(fsOpen, fsRead, fsClose);
   const writeIndex = WriteIndexFn(fsOpen, fsStats, fsWrite, fsClose);
-  const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
-  const yieldContentSpans = YieldContentSpansFn(
-    fsOpen,
-    fsRead,
-    fsClose
-  );
+  const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsStats, fsRead, fsClose);
+  const yieldContentSpans = YieldContentSpansFn(fsOpen, fsStats,  fsRead, fsClose);
 
   const index = await readIndex(filepath);
   let freeSpaces: Span[] | null = null;
@@ -54,7 +51,8 @@ export async function MakeContentIndex(
   const setOffset = async (key: string, value: number): Promise<void> => {
     index.set(key, value);
     freeSpaces = null;
-    await writeIndex(filepath, index, await spaces());
+    const ess = await spaces();
+    await writeIndex(filepath, index, ess);
   };
   const contains = async (key: string): Promise<boolean> => index.has(key);
   const remove = async (key: string): Promise<boolean> => {
@@ -97,11 +95,31 @@ export const ReadIndexFn = (
 
   return async (filepath: string): Promise<Map<string, number>> => {
     const fd = await openForReadingFn(filepath);
-    const indexBuffer = await readChunksFromFile(fd, 0);
+    const startOffset = await readIndexStartOffset(fd, fsRead);
+    const indexBuffer = await readChunksFromFile(fd, startOffset);
     const indexString = indexBuffer.toString();
     await closeFn(fd);
-    return new Map<string, number>(JSON.parse(indexString));
+    return new Map<string, number>(indexString 
+      ? JSON.parse(indexString) 
+      : undefined
+    );
   };
+};
+
+export const readIndexStartOffset = async (
+  fileDescriptor: number,
+  fsRead: FSReadFn,
+) => {
+  const readBuffer = ReadFn(fsRead);
+  const startOffsetBuff = await readBuffer(
+    fileDescriptor, 
+    { offset: 0, length: 20 },
+  );
+  const startOffset = Number.parseInt(
+    startOffsetBuff.toString(), 
+    10,
+  );
+  return startOffset;
 };
 
 export const WriteIndexFn = (
@@ -128,8 +146,8 @@ export const WriteIndexFn = (
     const keysAndValues = [...index];
     let buffer = Buffer.from(JSON.stringify(keysAndValues));
     const fittingSpaces = findFittingSpaces(buffer.length, emptySpaces);
-    const offset = await writeToEmptySpaces(filepath, buffer, fittingSpaces);
-    const offsetStr = `${offset}`.padStart(20, '0');
+    const occupiedSpans = await writeToEmptySpaces(filepath, buffer, fittingSpaces);
+    const offsetStr = `${occupiedSpans[0].offset}`.padStart(20, '0');
     buffer = Buffer.from(offsetStr);
     const fd = await openForWritingFn(filepath);
     await writeFn(fd, buffer, { offset: 0, length: buffer.length }, 0);

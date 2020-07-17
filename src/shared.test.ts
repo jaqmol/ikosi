@@ -9,7 +9,7 @@ import {
     makeFsRead,
     makeFsWrite,
     makeFsClose,
-    testStatsValue,
+    // testStatsValue,
 } from './test-utils';
 import { extractContentSpan } from './ikfs';
 import {
@@ -27,7 +27,7 @@ test('Test YieldChunkSpansFn', async () => {
     const oddLoremIpsum = loremIpsum.filter(odd);
     const evenLoremIpsum = loremIpsum.filter(even);
     const oddFileBufferSpans = createFileBufferSpans(oddLoremIpsum);
-    const fsRead = makeFsRead(fileBuffer);
+    const fsRead = makeFsRead(() => fileBuffer);
     const yieldChunkSpans = YieldChunkSpansFn(fsRead);
     
     const allWrittenSpans = await Promise.all(oddFileBufferSpans.map(
@@ -59,9 +59,10 @@ test('Test YieldContentSpansFn', async () => {
     const oddFileBufferSpans = createFileBufferSpans(oddLoremIpsum);
     const oddOffsets = oddFileBufferSpans.map(s => s.offset);
     const fsOpen = makeFsOpen(33);
-    const fsRead = makeFsRead(fileBuffer);
+    const fsRead = makeFsRead(() => fileBuffer);
+    const fsStats = makeFsStats(sts => ({ ...sts, size: fileBuffer.length }));
     const fsClose = makeFsClose();
-    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
+    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsStats, fsRead, fsClose);
     const foundValueIndexes : number[] = [];
     for await (const span of yieldContentSpans('correct', oddOffsets.values())) {
         const contentSpan = extractContentSpan(span);
@@ -86,14 +87,15 @@ test('Test FindEmptySpacesFn', async () => {
         (span, index) => [`key:${index}`, span.offset],
     ));
     const fsOpen = makeFsOpen(33);
-    const fsRead = makeFsRead(fullFileBuffer);
+    const fsStats = makeFsStats(sts => ({ ...sts, size: fullFileBuffer.length }));
+    const fsRead = makeFsRead(() => fullFileBuffer);
     const fsClose = makeFsClose();
-    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
+    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsStats, fsRead, fsClose);
     const occupiedSpaces : Span[] = [];
     for await (const space of yieldContentSpans('correct', index.values())) {
         occupiedSpaces.push(space);
     }
-    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
+    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsStats, fsRead, fsClose);
     const freeSpaces = await findEmptySpaces('correct', index);
     for (const freeSpace of freeSpaces) {
         const freeSpaceEnd = freeSpace.offset + freeSpace.length;
@@ -117,14 +119,15 @@ test('Test findFittingSpaces', async () => {
         (span, index) => [`key:${index}`, span.offset],
     ));
     const fsOpen = makeFsOpen(33);
-    const fsRead = makeFsRead(fullFileBuffer);
+    const fsStats = makeFsStats(sts => ({ ...sts, size: fullFileBuffer.length }));
+    const fsRead = makeFsRead(() => fullFileBuffer);
     const fsClose = makeFsClose();
-    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
+    const yieldContentSpans = YieldContentSpansFn(fsOpen, fsStats, fsRead, fsClose);
     const occupiedSpaces : Span[] = [];
     for await (const space of yieldContentSpans('correct', index.values())) {
         occupiedSpaces.push(space);
     }
-    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
+    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsStats, fsRead, fsClose);
     const freeSpaces = await findEmptySpaces('correct', index);
     for (const freeSpace of freeSpaces) {
         const freeContentSpan = extractContentSpan(freeSpace);
@@ -151,7 +154,7 @@ test('Test findFittingSpaces', async () => {
 
 test('Test ReadChunksFromFileFn', async () => {
     const fullFileBuffer = createContinuationFileBuffer();
-    const fsRead = makeFsRead(fullFileBuffer);
+    const fsRead = makeFsRead(() => fullFileBuffer);
     const readChunksFromFile = ReadChunksFromFileFn(fsRead);
     const dataBuff = await readChunksFromFile(33, 0);
     const result = dataBuff.toString();
@@ -169,16 +172,13 @@ test('Test WriteToEmptySpacesFn', async () => {
     ));
     const fsOpen = makeFsOpen(33);
     const fsWrite = makeFsWrite(fullFileBuffer);
-    const fsStats = makeFsStats(() => {
-        const s =  {
-            ...testStatsValue,
-            size: fsWrite.fileBuffer().length,
-        };
-        return s;
-    });
-    let fsRead = makeFsRead(fullFileBuffer);
+    const fsStats = makeFsStats(sts => ({
+        ...sts,
+        size: fsWrite.fileBuffer().length,
+    }));
+    const fsRead = makeFsRead(() => fsWrite.fileBuffer());
     const fsClose = makeFsClose();
-    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsRead, fsClose);
+    const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsStats, fsRead, fsClose);
     const writeToEmptySpaces = WriteToEmptySpacesFn(fsOpen, fsStats, fsWrite, fsClose);
     const freeSpaces = await findEmptySpaces('correct', index);
     let testContent = '';
@@ -187,7 +187,6 @@ test('Test WriteToEmptySpacesFn', async () => {
     }
     const testContentBuffer = Buffer.from(testContent);
     await writeToEmptySpaces('correct', testContentBuffer, freeSpaces);
-    fsRead = makeFsRead(fsWrite.fileBuffer());
     const readChunksFromFile = ReadChunksFromFileFn(fsRead);
     const dataBuff = await readChunksFromFile(33, freeSpaces[0].offset);
     const result = dataBuff.toString();

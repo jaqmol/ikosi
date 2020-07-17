@@ -112,7 +112,7 @@ test('Test IKFS WriteFn', async () => {
 test('Test IKFS ReadChunkFns.span', async () => {
   const fileBuffer = createFileBuffer(loremIpsum);
   const fileBufferSpans = createFileBufferSpans(loremIpsum);
-  const fsRead = makeFsRead(fileBuffer);
+  const fsRead = makeFsRead(() => fileBuffer);
   const readChunk = ReadChunkFns(fsRead);
   const span = await readChunk.span(77, fileBufferSpans[1].offset);
   expect(fsRead.passed.fd).toBe(77);
@@ -125,7 +125,7 @@ test('Test IKFS ReadChunkFns.span', async () => {
 test('Test IKFS ReadChunkFns.content', async () => {
   const fileBuffer = createFileBuffer(loremIpsum);
   const fileBufferSpans = createFileBufferSpans(loremIpsum);
-  const fsRead = makeFsRead(fileBuffer);
+  const fsRead = makeFsRead(() => fileBuffer);
   const readChunk = ReadChunkFns(fsRead);
   const span = await readChunk.span(99, fileBufferSpans[2].offset);
   const buffer = await readChunk.content(99, span);
@@ -137,7 +137,7 @@ test('Test IKFS ReadChunkFns.content', async () => {
 test('Test IKFS ReadChunkFns.continuation', async () => {
   const fileBuffer = createFileBuffer(loremIpsum);
   const fileBufferSpans = createFileBufferSpans(loremIpsum);
-  const fsRead = makeFsRead(fileBuffer);
+  const fsRead = makeFsRead(() => fileBuffer);
   const readChunk = ReadChunkFns(fsRead);
   const span = await readChunk.span(111, fileBufferSpans[3].offset);
   const continuation = await readChunk.continuation(111, span);
@@ -170,7 +170,7 @@ test('Test IKFS WriteChunkFns.number', async () => {
   const fsWrite = makeFsWrite();
   const writeChunk = WriteChunkFns(fsWrite);
   await writeChunk.number(3, 768, 256);
-  const fsRead = makeFsRead(fsWrite.fileBuffer());
+  const fsRead = makeFsRead(() => fsWrite.fileBuffer());
   const readChunk = ReadChunkFns(fsRead);
   const span = await readChunk.span(3, 256);
   expect(span).toEqual({ offset: 256, length: 768 });
@@ -188,7 +188,7 @@ test('Test IKFS WriteChunkFns.toSpace with fitting space', async () => {
     15, content, contALen, space, 32,
   );
   expect(bytesWritten).toBe(contBLen);
-  const fsRead = makeFsRead(fsWrite.fileBuffer());
+  const fsRead = makeFsRead(() => fsWrite.fileBuffer());
   const readChunk = ReadChunkFns(fsRead);
   const span = await readChunk.span(15, space.offset);
   const writtenContent = await readChunk.content(99, span);
@@ -210,7 +210,7 @@ test('Test IKFS WriteChunkFns.toSpace with small space', async () => {
     15, content, contALen, space, 32,
   );
   expect(bytesWritten).toBe(tooSmallSpaceLength - 40);
-  const fsRead = makeFsRead(fsWrite.fileBuffer());
+  const fsRead = makeFsRead(() => fsWrite.fileBuffer());
   const readChunk = ReadChunkFns(fsRead);
   const span = await readChunk.span(15, space.offset);
   const writtenContent = await readChunk.content(99, span);
@@ -232,7 +232,7 @@ test('Test IKFS WriteChunkFns.toSpace with big space', async () => {
     15, content, contALen, space, 32,
   );
   expect(bytesWritten).toBe(contBLen);
-  const fsRead = makeFsRead(fsWrite.fileBuffer());
+  const fsRead = makeFsRead(() => fsWrite.fileBuffer());
   const readChunk = ReadChunkFns(fsRead);
   const span = await readChunk.span(15, space.offset);
   const writtenContent = await readChunk.content(99, span);

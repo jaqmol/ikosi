@@ -42,7 +42,7 @@ export const makeFsClose = () => {
     return fsClose;
 };
 
-export const makeFsRead = (fileBuffer?: Buffer) => {
+export const makeFsRead = (fileBufferFn?: () => Buffer) => {
     const passed: PassedRWValues = {
         fd: -1,
         buffer: null,
@@ -63,8 +63,8 @@ export const makeFsRead = (fileBuffer?: Buffer) => {
         ) => void
     ) => {
         position = position || 0;
-        if (fileBuffer) {
-            fileBuffer.copy(buffer, offset, position, position + length);
+        if (fileBufferFn) {
+            fileBufferFn().copy(buffer, offset, position, position + length);
         }
         passed.fd = fd;
         passed.buffer = buffer;
@@ -77,7 +77,7 @@ export const makeFsRead = (fileBuffer?: Buffer) => {
     return fsRead;
 };
 
-export const makeFsStats = (statsValueFn: () => Stats = () => testStatsValue) => {
+export const makeFsStats = (statsValueFn: (s: Stats) => Stats = s => s) => {
     const passed = {
         filepath: '',
     };
@@ -86,7 +86,7 @@ export const makeFsStats = (statsValueFn: () => Stats = () => testStatsValue) =>
         callback: (err: NodeJS.ErrnoException | null, stats: Stats) => void
     ) => {
         passed.filepath = filepath;
-        callback(null, statsValueFn());
+        callback(null, statsValueFn(testStatsValue));
     };
     fsStats.passed = passed;
     return fsStats;
@@ -131,13 +131,39 @@ export const makeFsWrite = (initBuffer: Buffer = Buffer.alloc(0)) => {
     };
     fsWrite.passed = passed;
     fsWrite.fileBuffer = () => fileBuffer;
+    fsWrite.setFileBuffer = (fb: Buffer) => {
+        fileBuffer = fb;
+    };
     return fsWrite;
 };
 
-export const createContinuationFileBuffer = () => {
+export const makeFsTruncate = (
+    fileBufferFn: () => Buffer, 
+    truncationResultFn: (result: Buffer) => void,
+) => {
+    const passed: PassedRWValues = {
+        fd: -1,
+        buffer: null,
+        offset: -1,
+        length: -1,
+        position: -1,
+    };
+    const fsTruncate = (
+        path: string,
+        len: number | undefined | null,
+        callback: (err: NodeJS.ErrnoException | null) => void,
+    ) => {
+        const result = fileBufferFn().slice(0, len || 0);
+        truncationResultFn(result);
+        callback(null);
+    };
+    return fsTruncate;
+};
+
+export const createContinuationFileBuffer = (startOffset: number = 0) => {
     const oddLoremIpsum = loremIpsum.filter(odd);
     const evenLoremIpsum = loremIpsum.filter(even);
-    const oddFileBufferSpans = createFileBufferSpans(oddLoremIpsum);
+    const oddFileBufferSpans = createFileBufferSpans(oddLoremIpsum, startOffset);
     const evenFileBufferSpans = createFileBufferSpans(
         evenLoremIpsum, 
         (() => {

@@ -13,6 +13,9 @@ import {
   FSWriteFn,
   FSCloseFn
 } from './ikfs';
+import {
+  readIndexStartOffset,
+} from './content-index';
 
 export interface Span {
   offset: number;
@@ -21,15 +24,18 @@ export interface Span {
 
 export const FindEmptySpacesFn = (
   fsOpen: FSOpenFn,
+  fsStats: FSStatsFn,
   fsRead: FSReadFn,
   fsClose: FSCloseFn
 ) => {
-  const yieldContentSpans = YieldContentSpansFn(fsOpen, fsRead, fsClose);
+  const readIndexStartOffsetFromFile = ReadIndexStartOffsetFromFileFn(fsOpen, fsRead, fsClose);
+  const yieldContentSpans = YieldContentSpansFn(fsOpen, fsStats, fsRead, fsClose);
   return async (
     filepath: string,
     index: Map<string, number>
   ): Promise<Span[]> => {
     const spans: Span[] = [];
+    // TODO
     for await (const span of yieldContentSpans(filepath, index.values())) {
       spans.push(span);
     }
@@ -53,22 +59,42 @@ export const FindEmptySpacesFn = (
   };
 };
 
+export const ReadIndexStartOffsetFromFileFn = (
+  fsOpen: FSOpenFn,
+  fsRead: FSReadFn,
+  fsClose: FSCloseFn,
+) => {
+  const openForReadingFn = OpenForReadingFn(fsOpen);
+  const closeFn = CloseFn(fsClose);
+  return async (filepath: string) => {
+    const fd = await openForReadingFn(filepath);
+    const startOffset = await readIndexStartOffset(fd, fsRead);
+    await closeFn(fd);
+    return startOffset;
+  };
+};
+
 export const YieldContentSpansFn = (
   fsOpen: FSOpenFn,
+  fsStats: FSStatsFn,
   fsRead: FSReadFn,
   fsClose: FSCloseFn
 ) => {
   const openForReadingFn = OpenForReadingFn(fsOpen);
   const closeFn = CloseFn(fsClose);
+  const sizeFn = SizeFn(fsStats);
   const yieldChunkSpans = YieldChunkSpansFn(fsRead);
   return async function*(
     filepath: string,
-    forOffsets: IterableIterator<number>
+    forOffsets: IterableIterator<number> | number[]
   ) {
+    const size = await sizeFn(filepath);
     const fd = await openForReadingFn(filepath);
     for (const offset of forOffsets) {
-      for await (const span of yieldChunkSpans(fd, offset)) {
-        yield span;
+      if (offset < size) {
+        for await (const span of yieldChunkSpans(fd, offset)) {
+          yield span;
+        }
       }
     }
     await closeFn(fd);
@@ -179,9 +205,10 @@ export const WriteToEmptySpacesFn = (
       occupiedSpaces.push(space);
     }
     if (bufferOffset < buffer.length) {
-      if (!continuation) {
+      if (continuation === -1) {
         continuation = await sizeFn(filepath);
       }
+      continuation = continuation < 20 ? 20 : continuation;
       const space = {
         offset: continuation,
         length: buffer.length - bufferOffset + 40

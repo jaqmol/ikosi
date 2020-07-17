@@ -9,6 +9,9 @@ export const ReadChunkFns = (fsRead: FSReadFn) => {
     return { offset, length };
   };
   const content = (fd: number, chunkSpan: Span): Promise<Buffer> => {
+    if (Number.isNaN(chunkSpan.length) || (chunkSpan.length === 0)) {
+      return Promise.resolve(Buffer.alloc(0));
+    }
     return readBuffer(fd, {
       offset: chunkSpan.offset + 20,
       length: chunkSpan.length - 40

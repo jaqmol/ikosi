@@ -1,5 +1,13 @@
 import { MakeContentIndex } from './content-index';
 import { MakeContentStorage } from './content-storage';
+import {
+  FSOpenFn,
+  FSReadFn,
+  FSStatsFn,
+  FSWriteFn,
+  FSCloseFn,
+  FSTruncateFn,
+} from './ikfs';
 import fs from 'fs';
 
 export interface Ikosi {
@@ -12,12 +20,12 @@ export interface Ikosi {
 
 export async function MakeIkosi(
   filepath: string,
-  fsOpen = fs.open,
-  fsRead = fs.read,
-  fsStat = fs.stat,
-  fsWrite = fs.write,
-  fsClose = fs.close,
-  fsTruncate = fs.truncate
+  fsOpen: FSOpenFn = fs.open,
+  fsRead: FSReadFn = fs.read,
+  fsStat: FSStatsFn = fs.stat,
+  fsWrite: FSWriteFn = fs.write,
+  fsClose: FSCloseFn = fs.close,
+  fsTruncate: FSTruncateFn = fs.truncate
 ): Promise<Ikosi> {
   const index = await MakeContentIndex(
     filepath,
