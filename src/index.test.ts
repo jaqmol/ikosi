@@ -40,7 +40,8 @@ test('Test MakeIkosi Simple', async () => {
         expect(contains).toBeTruthy();
     }
     let storedKeysCount = 0;
-    for await (const key of ikosi.keys()) {
+    const keys = await ikosi.keys();
+    for await (const key of keys) {
         storedKeysCount++;
         const contains = expected.has(key);
         expect(contains).toBeTruthy();

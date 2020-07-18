@@ -2,9 +2,10 @@ import {
   Span,
   FindEmptySpacesFn,
   ReadChunksFromFileFn,
-  YieldContentSpansFn,
+  CollectContentSpansFn,
   WriteToEmptySpacesFn,
   findFittingSpaces,
+  ReadIndexStartOffsetFromFileFn,
 } from './shared';
 import {
   OpenForReadingFn,
@@ -20,13 +21,14 @@ import {
 } from './ikfs';
 
 export interface ContentIndex {
-  keys() : AsyncGenerator<string, void, unknown>;
+  keys() : Promise<string[]>;
   offset(key: string): Promise<number|undefined>;
   setOffset(key: string, offset: number): Promise<void>;
   contains(key: string): Promise<boolean>;
   remove(key: string): Promise<boolean>;
   spaces(): Promise<Span[]>;
-  spans(): Promise<Span[]>;
+  contentSpans(): Promise<Span[]>;
+  indexSpans(): Promise<Span[]>;
 }
 
 export async function MakeContentIndex(
@@ -40,39 +42,48 @@ export async function MakeContentIndex(
   const readIndex = ReadIndexFn(fsOpen, fsRead, fsClose);
   const writeIndex = WriteIndexFn(fsOpen, fsStats, fsWrite, fsClose);
   const findEmptySpaces = FindEmptySpacesFn(fsOpen, fsStats, fsRead, fsClose);
-  const yieldContentSpans = YieldContentSpansFn(fsOpen, fsStats,  fsRead, fsClose);
+  const collectContentSpans = CollectContentSpansFn(fsOpen, fsStats,  fsRead, fsClose);
+  const readIndexStartOffsetFromFile = ReadIndexStartOffsetFromFileFn(fsOpen, fsRead, fsClose);
 
   const index = await readIndex(filepath);
   let freeSpaces: Span[] | null = null;
-  async function* keys() {
-    for (let k of index.keys()) yield k;
-  }
+
+  const keys = () => Promise.resolve(Array.from(index.keys()));
+  
   const offset = async (key: string): Promise<number|undefined> => index.get(key);
+  
   const setOffset = async (key: string, value: number): Promise<void> => {
     index.set(key, value);
     freeSpaces = null;
     const ess = await spaces();
     await writeIndex(filepath, index, ess);
   };
+  
   const contains = async (key: string): Promise<boolean> => index.has(key);
+  
   const remove = async (key: string): Promise<boolean> => {
     const done = index.delete(key);
     freeSpaces = null;
     await writeIndex(filepath, index, await spaces());
     return done;
   };
+  
   const spaces = async (): Promise<Span[]> => {
     if (freeSpaces) return freeSpaces;
     freeSpaces = await findEmptySpaces(filepath, index);
     return freeSpaces;
   };
-  const spans = async (): Promise<Span[]> => {
-    const values: Span[] = [];
-    for await (const spanValue of yieldContentSpans(filepath, index.values())) {
-      values.push(spanValue);
+  
+  const contentSpans = async (): Promise<Span[]> => collectContentSpans(filepath, index.values());
+  
+  const indexSpans = async (): Promise<Span[]> => {
+    const indexStartOffset = await readIndexStartOffsetFromFile(filepath);
+    if (!Number.isNaN(indexStartOffset)) {
+      return collectContentSpans(filepath, [indexStartOffset]);
     }
-    return values;
+    return [];
   };
+  
   return {
     keys,
     offset,
@@ -80,7 +91,8 @@ export async function MakeContentIndex(
     contains,
     remove,
     spaces,
-    spans
+    contentSpans,
+    indexSpans,
   };
 }
 

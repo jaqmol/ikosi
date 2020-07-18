@@ -28,22 +28,18 @@ export const FindEmptySpacesFn = (
   fsRead: FSReadFn,
   fsClose: FSCloseFn
 ) => {
-  const readIndexStartOffsetFromFile = ReadIndexStartOffsetFromFileFn(fsOpen, fsRead, fsClose);
-  const yieldContentSpans = YieldContentSpansFn(fsOpen, fsStats, fsRead, fsClose);
+  const collectContentSpans = CollectContentSpansFn(fsOpen, fsStats, fsRead, fsClose);
   return async (
     filepath: string,
     index: Map<string, number>
   ): Promise<Span[]> => {
-    const spans: Span[] = [];
-    // TODO
-    for await (const span of yieldContentSpans(filepath, index.values())) {
-      spans.push(span);
-    }
+    const spans = await collectContentSpans(filepath, index.values());
     spans.sort((a, b) => {
       if (a.offset < b.offset) return -1;
       if (a.offset > b.offset) return 1;
       return 0;
     });
+    
     const lastIndex = spans.length - 1;
     const spaces: Span[] = [];
     for (let i = 0; i < spans.length; i++) {
@@ -74,7 +70,7 @@ export const ReadIndexStartOffsetFromFileFn = (
   };
 };
 
-export const YieldContentSpansFn = (
+export const CollectContentSpansFn = (
   fsOpen: FSOpenFn,
   fsStats: FSStatsFn,
   fsRead: FSReadFn,
@@ -83,21 +79,22 @@ export const YieldContentSpansFn = (
   const openForReadingFn = OpenForReadingFn(fsOpen);
   const closeFn = CloseFn(fsClose);
   const sizeFn = SizeFn(fsStats);
-  const yieldChunkSpans = YieldChunkSpansFn(fsRead);
-  return async function*(
+  const collectChunkSpans = CollectChunkSpansFn(fsRead);
+  return async (
     filepath: string,
-    forOffsets: IterableIterator<number> | number[]
-  ) {
+    forOffsets: IterableIterator<number> | number[],
+  ) => {
     const size = await sizeFn(filepath);
     const fd = await openForReadingFn(filepath);
+    const acc: Span[] = [];
     for (const offset of forOffsets) {
       if (offset < size) {
-        for await (const span of yieldChunkSpans(fd, offset)) {
-          yield span;
-        }
+        const spans = await collectChunkSpans(fd, offset);
+        acc.push(...spans);
       }
     }
     await closeFn(fd);
+    return acc;
   };
 };
 
@@ -143,10 +140,11 @@ export const findFittingSpaces = (bufferLength: number, emptySpaces: Span[]): Sp
 
 export const ReadChunksFromFileFn = (fsRead: FSReadFn) => {
   const readChunk = ReadChunkFns(fsRead);
-  const yieldChunkSpans = YieldChunkSpansFn(fsRead);
+  const collectChunkSpans = CollectChunkSpansFn(fsRead);
   return async (fd: number, startOffset: number): Promise<Buffer> => {
     const acc: Buffer[] = [];
-    for await (const span of yieldChunkSpans(fd, startOffset)) {
+    const spans = await collectChunkSpans(fd, startOffset);
+    for (const span of spans) {
       const chunk = await readChunk.content(fd, span);
       acc.push(chunk);
     }
@@ -154,16 +152,18 @@ export const ReadChunksFromFileFn = (fsRead: FSReadFn) => {
   };
 };
 
-export const YieldChunkSpansFn = (fsRead: FSReadFn) => {
+export const CollectChunkSpansFn = (fsRead: FSReadFn) => {
   const readChunk = ReadChunkFns(fsRead);
-  return async function*(fd: number, startOffset: number) {
+  return async (fd: number, startOffset: number) => {
     let offset = startOffset;
+    const acc: Span[] = [];
     while (offset > -1) {
       const span = await readChunk.span(fd, offset);
-      yield span;
+      acc.push(span);
       const continuation = await readChunk.continuation(fd, span);
       offset = continuation || -1;
     }
+    return acc;
   };
 };
 

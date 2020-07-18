@@ -11,7 +11,7 @@ import {
 import fs from 'fs';
 
 export interface Ikosi {
-  keys() : AsyncGenerator<string, void, unknown>;
+  keys() : Promise<string[]>;
   set(key: string, value: Buffer|string): Promise<void>;
   get(key: string): Promise<Buffer|undefined>;
   contains(key: string): Promise<boolean>;

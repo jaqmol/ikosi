@@ -97,6 +97,22 @@ export const WriteValueFn = (
   };
 };
 
+//     {
+//     const fileEndPosition = await sizeFn(filepath);
+//     const indexSpansEndPosition = await findEndPosition(contentIndex.indexSpans);
+//     const contentSpansEndPosition = await findEndPosition(contentIndex.contentSpans);
+//     console.log('fileEndPosition:', fileEndPosition);
+//     console.log('indexSpansEndPosition:', indexSpansEndPosition);
+//     console.log('contentSpansEndPosition:', contentSpansEndPosition);
+//     const dataEndPosition = contentSpansEndPosition; // Math.max(contentSpansEndPosition, indexSpansEndPosition);
+//     // console.log('dataEndPosition:', dataEndPosition);
+//     if ((dataEndPosition > 20) && (fileEndPosition > dataEndPosition)) {
+//       console.log('PERFORMING TRUNCATION');
+//       await truncateFn(filepath, dataEndPosition);
+//     }
+//   };
+// };
+
 export const TruncateIndexFn = (fsStats: FSStatsFn, fsTruncate: FSTruncateFn) => {
   const sizeFn = SizeFn(fsStats);
   const truncateFn = TruncateFn(fsTruncate);
@@ -104,14 +120,35 @@ export const TruncateIndexFn = (fsStats: FSStatsFn, fsTruncate: FSTruncateFn) =>
     filepath: string,
     contentIndex: ContentIndex
   ): Promise<void> => {
-    const fileEndIndex = await sizeFn(filepath);
-    const spans = await contentIndex.spans();
-    const dataEndIndex = spans.reduce<number>((endIndex, s) => {
-      const sEndIdx = s.offset + s.length;
-      return sEndIdx > endIndex ? sEndIdx : endIndex;
-    }, -1);
-    if (dataEndIndex > 20 && fileEndIndex > dataEndIndex) {
-      await truncateFn(filepath, dataEndIndex);
+    const contentSpansEndPosition = await findEndPosition(contentIndex.contentSpans);
+    const indexSpansEndPosition = await findEndPosition(contentIndex.indexSpans);
+    const fileEndPosition = await sizeFn(filepath);
+    console.log('fileEndPosition:', typeof fileEndPosition);
+    console.log('indexSpansEndPosition:', typeof indexSpansEndPosition);
+    console.log('contentSpansEndPosition:', typeof contentSpansEndPosition);
+    const dataEndPosition = contentSpansEndPosition; // Math.max(contentSpansEndPosition, indexSpansEndPosition);
+    // console.log('dataEndPosition:', dataEndPosition);
+    if ((dataEndPosition > 20) && (fileEndPosition > dataEndPosition)) {
+      console.log('PERFORMING TRUNCATION');
+      await truncateFn(filepath, dataEndPosition);
+    } else {
+      console.log('NOT PERFORMING TRUNCATION');
     }
   };
 };
+
+const findEndPosition = async (getSpans: () => Promise<Span[]>) => {
+  const spans = await getSpans();
+  const endPositions = spans.map(s => s.offset + s.length);
+  return endPositions.length ? Math.max(...endPositions) : 0;
+};
+
+// const findMax = (...numbers: number[]) => {
+//   console.log('finding max in numbers:', numbers);
+//   let len = numbers.length;
+//   let max = -Infinity;
+//   while (len--) {
+//     max = numbers[len] > max ? numbers[len] : max;
+//   }
+//   return max;
+// }

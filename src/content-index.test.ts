@@ -79,10 +79,7 @@ test('Test MakeContentIndex on empty file', async () => {
     const fsClose = makeFsClose();
     const fsWrite = makeFsWrite();
     const contIdx = await MakeContentIndex('correct', fsOpen, fsRead, fsStats, fsWrite, fsClose);
-    const keys: string[] = [];
-    for await (let k of contIdx.keys()) {
-        keys.push(k);
-    }
+    const keys: string[] = await contIdx.keys();
     expect(keys.length).toBe(0);
     const offset = await contIdx.offset('key-a');
     expect(offset).toBeUndefined();
@@ -92,8 +89,8 @@ test('Test MakeContentIndex on empty file', async () => {
     expect(keyARemoved).toBeFalsy();
     const spaces = await contIdx.spaces();
     expect(spaces.length).toBe(0);
-    const spans = await contIdx.spans();
-    expect(spans.length).toBe(0);
+    const contentSpans = await contIdx.contentSpans();
+    expect(contentSpans.length).toBe(0);
 });
 
 // NOTE: This is hard to test because the index relies on actual data being written together with the index itself. 

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "",
   "jest": {
-    "rootDir": "build"
+    "rootDir": "build",
+    "verbose": true
   },
   "main": "index.js",
   "scripts": {
