@@ -1,69 +1,24 @@
-import { MakeContentIndex } from './content-index';
-import { MakeContentStorage } from './content-storage';
 import {
-  FSOpenFn,
-  FSReadFn,
-  FSStatsFn,
-  FSWriteFn,
-  FSCloseFn,
-  FSTruncateFn,
-} from './ikfs';
-import fs from 'fs';
+    Span,
+    IndexStorageFormat,
+} from './types';
 
-export interface Ikosi {
-  keys() : Promise<string[]>;
-  set(key: string, value: Buffer|string): Promise<void>;
-  get(key: string): Promise<Buffer|undefined>;
-  contains(key: string): Promise<boolean>;
-  remove(key: string): Promise<boolean>;
-}
+export const MakeIndex = async (
+    read: () => Promise<Buffer>,
+    write: (data: Buffer) => Promise<void>,
+) => {
+    const index = new Map<string, Span[]>();
 
-export async function MakeIkosi(
-  filepath: string,
-  fsOpen: FSOpenFn = fs.open,
-  fsRead: FSReadFn = fs.read,
-  fsStat: FSStatsFn = fs.stat,
-  fsWrite: FSWriteFn = fs.write,
-  fsClose: FSCloseFn = fs.close,
-  fsTruncate: FSTruncateFn = fs.truncate
-): Promise<Ikosi> {
-  const index = await MakeContentIndex(
-    filepath,
-    fsOpen,
-    fsRead,
-    fsStat,
-    fsWrite,
-    fsClose
-  );
-  const storage = await MakeContentStorage(
-    filepath,
-    index,
-    fsOpen,
-    fsRead,
-    fsStat,
-    fsWrite,
-    fsClose,
-    fsTruncate
-  );
-  
-  const keys = () => index.keys();
-  const set = (key: string, value: Buffer|string): Promise<void> => {
-    return storage.set(key, value);
-  };
-  const get = (key: string): Promise<Buffer|undefined> => {
-    return storage.get(key);
-  };
-  const contains = (key: string): Promise<boolean> => {
-    return index.contains(key);
-  };
-  const remove = (key: string): Promise<boolean> => {
-    return storage.remove(key);
-  };
-  return {
-    keys,
-    set,
-    get,
-    contains,
-    remove
-  };
-}
+};
+
+export const writeStorageFormat = async (
+    index: Map<string, Span[]>,
+    write: (data: Buffer) => Promise<void>,
+) => {
+    const storageFormat :IndexStorageFormat = Array.from(index.entries()).map(
+        ([key, spans]) => [key, spans[0].offset]
+    );
+    const storageString = JSON.stringify(storageFormat);
+    const storageBuffer = Buffer.from(storageString);
+    await write(storageBuffer);
+};
