@@ -45,7 +45,7 @@ export const writeIndex = async (
     fd: number, 
     index: Map<string, number>,
 ) :Promise<Span[]> => {
-    const indexOffset = await readIndexOffset(fsRead, fd);
+    let indexOffset = await readIndexOffset(fsRead, fd);
     const valueOffsets = Array.from(index.values());
     const occupiedSpans = await collectOccupiedSpans(fsRead, fd, indexOffset, valueOffsets); 
 
@@ -55,7 +55,9 @@ export const writeIndex = async (
 
     const write = MakeDataWriter(fsStats, fsWrite, filepath, fd, occupiedSpans);
     const writtenSpans = await write(storageBuffer);
-    await writeIndexOffset(fsWrite, fd, writtenSpans[0].offset);
+    indexOffset = writtenSpans[0].offset;
+
+    await writeIndexOffset(fsWrite, fd, indexOffset);
     return writtenSpans;
 };
 
