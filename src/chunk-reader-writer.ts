@@ -23,8 +23,11 @@ export const MakeChunkReader = (fsRead: FSReadFn, fd: number, startOffset: numbe
     
     const continuation = async () :Promise<number> => {
         const len = await length();
-        const span = {offset: len - NumberFormat.bufferifiedLength, length: NumberFormat.bufferifiedLength};
-        const continuationBuff = await read(fd, span);
+        const continuationSpan = {
+            offset: startOffset + len - NumberFormat.bufferifiedLength, 
+            length: NumberFormat.bufferifiedLength,
+        };
+        const continuationBuff = await read(fd, continuationSpan);
         return NumberFormat.parse(continuationBuff);
     };
     

@@ -16,12 +16,14 @@ import {
 
 export const MakeSpaceProvider = (fsStats: FSStatsFn, filepath: string, occupiedSpans: Span[]) => {
     const fileSize = SizeFn(fsStats);
+    
     const spans = [...occupiedSpans];
     spans.sort((a, b) => {
         if (a.offset < b.offset) return -1;
         if (a.offset > b.offset) return 1;
         return 0;
     });
+
     const lastIndex = spans.length - 1;
     const spaces: Span[] = [];
     for (let i = 0; i < spans.length; i++) {
@@ -30,13 +32,18 @@ export const MakeSpaceProvider = (fsStats: FSStatsFn, filepath: string, occupied
             const b = spans[i + 1];
             const offset = a.offset + a.length;
             const length = b.offset - offset;
-            spaces.push({ offset, length });
+            if (length > 0) {
+                spaces.push({ offset, length });
+            }
         }
     }
+    console.log('spaces:', spaces);
+    
     return async (required: number) :Promise<Span> => {
         let signedDivergence = Infinity;
         let divergence = Infinity;
         let index: number = -1;
+
         for (let i = 0; i < spaces.length; i++) {
             const space = spaces[i];
             const spaceSignedDivergence = space.length - required;
@@ -55,10 +62,12 @@ export const MakeSpaceProvider = (fsStats: FSStatsFn, filepath: string, occupied
                 }
             }
         }
+
         if (index === -1) {
             const offset = await fileSize(filepath);
             return {offset, length: required};
         }
+
         return spaces.splice(index, 1)[0];
     };
 };
@@ -66,13 +75,15 @@ export const MakeSpaceProvider = (fsStats: FSStatsFn, filepath: string, occupied
 export const collectOccupiedSpans = async (fsRead: FSReadFn, fd: number, indexOffset: number, valueOffsets: number[]) :Promise<Span[]> => {
     const acc :Span[] = [];
 
-    let reader = MakeDataReader(fsRead, fd, indexOffset);
-    let spans = await reader.envelopeSpans();
-    acc.push(...spans);
+    if (indexOffset > 0) {
+        const reader = MakeDataReader(fsRead, fd, indexOffset);
+        const spans = await reader.envelopeSpans();
+        acc.push(...spans);
+    }
 
     for (const offset of valueOffsets) {
-        reader = MakeDataReader(fsRead, fd, offset);
-        spans = await reader.envelopeSpans();
+        const reader = MakeDataReader(fsRead, fd, offset);
+        const spans = await reader.envelopeSpans();
         acc.push(...spans);
     }
 
