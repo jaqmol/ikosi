@@ -1,7 +1,9 @@
 import { 
     Stats,
+    constants,
 } from 'fs';
 import {
+    FSAccessFn,
     FSOpenFn,
     FSCloseFn,
     FSStatsFn,
@@ -12,10 +14,39 @@ import {
 } from './types'
 
 
+export const AccessFn = (fsAccess: FSAccessFn) => (filepath: string, mode: number): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+        fsAccess(filepath, mode, err => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+
+export const RWAccessFn = (fsAccess: FSAccessFn) => async (filepath: string) :Promise<void> => {
+    const access = AccessFn(fsAccess);
+    await access(filepath, constants.R_OK);
+    await access(filepath, constants.W_OK);
+};
+
+export const ExistsFn = (fsAccess: FSAccessFn) => async (filepath: string) :Promise<boolean> => {
+    const access = AccessFn(fsAccess);
+    try {
+        await access(filepath, constants.F_OK);
+        return true;
+    } catch(e) {
+        return false;
+    }
+};
+
 export const OpenForReadingFn = (fsOpen: FSOpenFn) => (filepath: string) =>
     open(fsOpen, filepath, 'r');
-export const OpenForWritingFn = (fsOpen: FSOpenFn) => (filepath: string) =>
-    open(fsOpen, filepath, 'w');
+
+export const OpenForReadingAndWritingFn = (fsOpen: FSOpenFn) => (filepath: string) =>
+    open(fsOpen, filepath, 'r+');
+
+export const OpenTruncatedForReadingAndWritingFn = (fsOpen: FSOpenFn) => (filepath: string) =>
+    open(fsOpen, filepath, 'w+');
+
 const open = (
     fsOpen: FSOpenFn,
     filepath: string,

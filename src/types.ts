@@ -7,6 +7,12 @@ export interface Span {
     length: number;
 }
 
+export type FSAccessFn = (
+    path: string,
+    mode: number,
+    callback: (err: NodeJS.ErrnoException | null) => void
+) => void;
+
 export type FSOpenFn = (
     path: string,
     flags: string,
