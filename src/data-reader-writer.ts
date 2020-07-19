@@ -16,6 +16,7 @@ import {
 import {
     MakeSpaceProvider,
 } from './spaces-and-spans';
+import { NumberFormat } from './number-format';
 
 export const MakeDataReader = (fsRead: FSReadFn, fd: number, startOffset: number) :DataReader => {
     
@@ -64,19 +65,21 @@ export const MakeDataWriter = (fsStats: FSStatsFn, fsWrite: FSWriteFn, filepath:
         let bytesLeft = data.length;
         let offset = 0; 
         let length = data.length;
-        let nextSpace = await provideSpace(length);
-        let [occupiedSpan, continuation] = await writeChunk(data, {offset, length}, nextSpace);
-        const occupiedSpans: Span[] = [occupiedSpan];
-        bytesLeft -= occupiedSpan.length;
+        let requiredLength = length + NumberFormat.twiceBufferifiedLength;
+        let nextSpace = await provideSpace(requiredLength);
+        let [occupied, continuation] = await writeChunk(data, {offset, length}, nextSpace);
+        const occupiedSpans: Span[] = [occupied];
+        bytesLeft -= occupied.length;
 
         while (bytesLeft > 0) {
-            offset = occupiedSpan.offset + occupiedSpan.length;
+            offset = occupied.offset + occupied.length;
             length = data.length - offset;
-            nextSpace = await provideSpace(length);
+            requiredLength = length + NumberFormat.twiceBufferifiedLength;
+            nextSpace = await provideSpace(requiredLength);
             await continuation(nextSpace.offset);
-            [occupiedSpan, continuation] = await writeChunk(data, {offset, length}, nextSpace);
-            occupiedSpans.push(occupiedSpan);
-            bytesLeft -= occupiedSpan.length;
+            [occupied, continuation] = await writeChunk(data, {offset, length}, nextSpace);
+            occupiedSpans.push(occupied);
+            bytesLeft -= occupied.length;
         }
 
         await continuation(0);

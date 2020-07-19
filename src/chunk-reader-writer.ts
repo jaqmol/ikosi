@@ -59,23 +59,23 @@ export const MakeChunkWriter = (fsWrite: FSWriteFn, fd: number) => {
 
     // Public
     
-    return async (data: Buffer, dataSpan: Span, spaceSpan: Span) :Promise<ChunkWritingResult> => {
+    return async (data: Buffer, dataSpan: Span, space: Span) :Promise<ChunkWritingResult> => {
         const requiredLength = dataSpan.length + NumberFormat.twiceBufferifiedLength;
-        if (dataSpan.length > requiredLength) throw new Error("Space span doesn't fit data span");
-        const dataFilePosition = spaceSpan.offset + NumberFormat.bufferifiedLength;
+        if (space.length < requiredLength) throw new Error(`Space length (${space.length}) too small for data span length (${dataSpan.length})`);
+        const dataFilePosition = space.offset + NumberFormat.bufferifiedLength;
         const lengthWritten = await write(fd, data, dataSpan, dataFilePosition);
         
         const occupiedLength = lengthWritten + NumberFormat.twiceBufferifiedLength;
         const occupiedLengthBuff = NumberFormat.bufferify(occupiedLength);
         const occupiedLengthSpan = {offset: 0, length: occupiedLengthBuff.length};
-        await write(fd, occupiedLengthBuff, occupiedLengthSpan, spaceSpan.offset);
+        await write(fd, occupiedLengthBuff, occupiedLengthSpan, space.offset);
 
-        const occupiedSpan = {offset: spaceSpan.offset, length: occupiedLength};
+        const occupied = {offset: space.offset, length: occupiedLength};
 
         return [
-            occupiedSpan,
+            occupied,
             async (continuation: number) => {
-                const contFilePosition = occupiedSpan.offset + occupiedSpan.length - NumberFormat.bufferifiedLength;
+                const contFilePosition = occupied.offset + occupied.length - NumberFormat.bufferifiedLength;
                 const contBuff = NumberFormat.bufferify(continuation);
                 const contSpan = {offset: 0, length: contBuff.length};
                 await write(fd, contBuff, contSpan, contFilePosition);
