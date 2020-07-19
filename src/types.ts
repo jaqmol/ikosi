@@ -56,14 +56,16 @@ export type FSWriteFn = (
 ) => void;
 
 export interface ChunkReader {
-    data() :Promise<Buffer>
     continuation() :Promise<number>
-    span() :Promise<Span>
+    envelopeSpan() :Promise<Span>
+    dataSpan() :Promise<Span>
+    data() :Promise<Buffer>
 }
 
 export interface DataReader {
+    envelopeSpans() :Promise<Span[]>
+    dataSpans() :Promise<Span[]>
     data() :Promise<Buffer>
-    spans() :Promise<Span[]>
 }
 
 export type IndexStorageFormat = [string, number][];

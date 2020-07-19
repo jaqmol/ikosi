@@ -1,4 +1,5 @@
 import {
+    FSReadFn,
     FSWriteFn,
     FSStatsFn,
     Span,
@@ -8,6 +9,10 @@ import {
 import {
     SizeFn,
 } from './wrappers';
+
+import {
+    MakeDataReader,
+} from './data-reader-writer';
 
 export const MakeSpaceProvider = (fsStats: FSStatsFn, filepath: string, occupiedSpans: Span[]) => {
     const fileSize = SizeFn(fsStats);
@@ -52,8 +57,24 @@ export const MakeSpaceProvider = (fsStats: FSStatsFn, filepath: string, occupied
         }
         if (index === -1) {
             const offset = await fileSize(filepath);
-            return {offset, length: Infinity};
+            return {offset, length: required};
         }
         return spaces.splice(index, 1)[0];
     };
+};
+
+export const collectOccupiedSpans = async (fsRead: FSReadFn, fd: number, indexOffset: number, valueOffsets: number[]) :Promise<Span[]> => {
+    const acc :Span[] = [];
+
+    let reader = MakeDataReader(fsRead, fd, indexOffset);
+    let spans = await reader.envelopeSpans();
+    acc.push(...spans);
+
+    for (const offset of valueOffsets) {
+        reader = MakeDataReader(fsRead, fd, offset);
+        spans = await reader.envelopeSpans();
+        acc.push(...spans);
+    }
+
+    return acc;
 };
