@@ -52,7 +52,7 @@ export const MakeChunkReader = (fsRead: FSReadFn, fd: number, startOffset: numbe
     return {continuation, envelopeSpan, dataSpan, data};
 };
 
-type ChunkWritingResult = [
+export type ChunkWritingResult = [
     Span,
     (position: number) => Promise<void>,
 ]

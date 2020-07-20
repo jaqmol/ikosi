@@ -12,6 +12,7 @@ import {
 import {
     MakeChunkReader,
     MakeChunkWriter,
+    ChunkWritingResult,
 } from './chunk-reader-writer';
 import {
     MakeSpaceProvider,
@@ -57,32 +58,50 @@ export const MakeDataReader = (fsRead: FSReadFn, fd: number, startOffset: number
     return {data, envelopeSpans, dataSpans};
 };
 
-export const MakeDataWriter = (fsStats: FSStatsFn, fsWrite: FSWriteFn, filepath: string, fd: number, occupiedSpans: Span[]) => {
-    const provideSpace = MakeSpaceProvider(fsStats, filepath, occupiedSpans);
+export const MakeDataWriter = (fsWrite: FSWriteFn, fd: number, occupiedSpans: Span[]) => {
+    const provideSpace = MakeSpaceProvider(occupiedSpans);
     const writeChunk = MakeChunkWriter(fsWrite, fd);
-    
-    return async (data: Buffer) :Promise<Span[]> => {
-        let bytesLeft = data.length;
-        let offset = 0; 
-        let length = data.length;
-        let requiredLength = length + NumberFormat.twiceBufferifiedLength;
-        let nextSpace = await provideSpace(requiredLength);
-        let [occupied, continuation] = await writeChunk(data, {offset, length}, nextSpace);
-        const occupiedSpans: Span[] = [occupied];
-        bytesLeft -= occupied.length;
 
-        while (bytesLeft > 0) {
-            offset = occupied.offset + occupied.length;
-            length = data.length - offset;
-            requiredLength = length + NumberFormat.twiceBufferifiedLength;
-            nextSpace = await provideSpace(requiredLength);
-            await continuation(nextSpace.offset);
-            [occupied, continuation] = await writeChunk(data, {offset, length}, nextSpace);
-            occupiedSpans.push(occupied);
-            bytesLeft -= occupied.length;
+    return async (data: Buffer) :Promise<Span[]> => {
+        const sizing = MakeSizingProvider(data.length);
+        let offset = 0;
+        let [envelopeLength, dataSpan] = sizing(offset);
+        let nextSpace = await provideSpace(envelopeLength());
+        let [lastOccupied, lastContinuation] = await writeChunk(data, dataSpan(nextSpace), nextSpace);
+
+        const occupiedSpans: Span[] = [lastOccupied];
+        offset += lastOccupied.length;
+
+        while (offset < data.length) {
+            [envelopeLength, dataSpan] = sizing(offset);
+            nextSpace = await provideSpace(envelopeLength());
+            await lastContinuation(nextSpace.offset);
+            
+            [lastOccupied, lastContinuation] = await writeChunk(data, dataSpan(nextSpace), nextSpace);
+            
+            occupiedSpans.push(lastOccupied);
+            offset += lastOccupied.length;
         }
 
-        await continuation(0);
+        await lastContinuation(0);
         return occupiedSpans;
     };
 };
+
+type SizingFunctions = [() => number, (nextSpace: Span) => Span];
+const MakeSizingProvider = (dataLength: number) => (offset: number) :SizingFunctions => {
+    const remainingLength = dataLength - offset;
+    return [
+        () => { // envelopeLength
+            const remainingDataLength = dataLength - offset;
+            return remainingDataLength + NumberFormat.twiceBufferifiedLength;
+        },
+        (nextSpace: Span) => { // dataSpan
+            const nextSpaceDataLength = nextSpace.length - NumberFormat.twiceBufferifiedLength;
+            const length = Math.min(remainingLength, nextSpaceDataLength);
+            return {offset, length};
+        }
+    ];
+};
+
+

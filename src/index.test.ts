@@ -7,11 +7,23 @@ import {
 
 test('Ikosi', async () => {
     const ikosi = await MakeIkosi('build/test-a.icf');
-    await ikosi.set(`k:a`, Buffer.from(loremIpsum[0]));
-    await ikosi.set(`k:b`, Buffer.from(loremIpsum[1]));
-    await ikosi.delete(`k:b`);
-    await ikosi.set(`k:c`, Buffer.from(loremIpsum[2]));
-    await ikosi.set(`k:d`, Buffer.from(loremIpsum[3]));
-    await ikosi.delete(`k:d`);
-    await ikosi.set(`k:e`, Buffer.from(loremIpsum[4]));
+    
+    const keysAndValues = loremIpsum.map<[string, Buffer]>((sentence, i) => [
+        `k:${String.fromCharCode(97 + i)}`,
+        Buffer.from(sentence),
+    ]);
+
+    await Promise.all(keysAndValues.map(args => ikosi.set(...args)));
+    
+
+    // for (let i = 0; i < loremIpsum.length; i++) {
+    //     const sentence = loremIpsum[i];
+    //     const key = `k:${String.fromCharCode(97 + i)}`;
+    //     const value = Buffer.from(sentence);
+    //     return ikosi.set(key, value);
+    // }
+    // await Promise.all(loremIpsum.map((s, i) => {
+        
+    //     return ikosi.set(key, value);
+    // }));
 });

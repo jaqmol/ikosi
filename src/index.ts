@@ -33,6 +33,9 @@ import {
     collectOccupiedSpans
 } from './spaces-and-spans';
 import { 
+    MakeJobSequence,
+ } from "./job-sequence";
+import { 
     NumberFormat,
  } from "./number-format";
 import fs from 'fs';
@@ -81,22 +84,33 @@ export const MakeIkosi = async (
         return data;
     };
 
-    const set = async (key: string, data: Buffer) :Promise<void> => {
-        const fd = await openForReadingAndWriting(filepath);
+    let sequenceSetJob = MakeJobSequence<void>();
+    const set = (key: string, data: Buffer) => new Promise<void>((resolve, reject) => {
+        sequenceSetJob(
+            async (done) => {
+                const fd = await openForReadingAndWriting(filepath);
         
-        const indexOffset = await readIndexOffset(fsRead, fd);
-        const valueOffsets = Array.from(index.values());
-        const occupiedSpans = await collectOccupiedSpans(fsRead, fd, indexOffset, valueOffsets);
-        
-        const write = MakeDataWriter(fsStats, fsWrite, filepath, fd, occupiedSpans);
-        const writtenSpans = await write(data);
-        index.set(key, writtenSpans[0].offset);
-        await writeIndex(fsStats, fsRead, fsWrite, filepath, fd, index);
+                const indexOffset = await readIndexOffset(fsRead, fd);
+                console.log('indexOffset:', indexOffset);
+                const valueOffsets = Array.from(index.values());
+                console.log('valueOffsets:', valueOffsets);
+                const occupiedSpans = await collectOccupiedSpans(fsRead, fd, indexOffset, valueOffsets);
+                console.log('occupiedSpans:', occupiedSpans);
+                
+                const write = MakeDataWriter(fsWrite, fd, occupiedSpans);
+                const writtenSpans = await write(data);
+                index.set(key, writtenSpans[0].offset);
+                await writeIndex(fsRead, fsWrite, fd, index);
 
-        // TODO: TRUNCATION
+                // TODO: TRUNCATION
 
-        await close(fd);
-    };
+                await close(fd);
+                done(null);
+            },
+            resolve,
+            reject,
+        );
+    });
 
     const has = (key: string) :Promise<boolean> =>
         Promise.resolve(index.has(key));
@@ -104,7 +118,7 @@ export const MakeIkosi = async (
     const deleteFn = async (key: string) :Promise<boolean> => {
         const result = index.delete(key);
         const fd = await openForReadingAndWriting(filepath);
-        await writeIndex(fsStats, fsRead, fsWrite, filepath, fd, index);
+        await writeIndex(fsRead, fsWrite, fd, index);
         // TODO: TRUNCATION
         await close(fd);
         return result;
@@ -115,7 +129,7 @@ export const MakeIkosi = async (
         if (confirmed) {
             index.clear();
             const fd = await openForReadingAndWriting(filepath);
-            await writeIndex(fsStats, fsRead, fsWrite, filepath, fd, index);
+            await writeIndex(fsRead, fsWrite, fd, index);
             // TODO: TRUNCATION
             await close(fd);
         }
@@ -163,7 +177,7 @@ export const initIndex = async (
         await createFile(fsOpen, fsWrite, close, filepath);
         const index = new Map<string, number>();
         const fd = await openForReadingAndWriting(filepath);
-        await writeIndex(fsStats, fsRead, fsWrite, filepath, fd, index);
+        await writeIndex(fsRead, fsWrite, fd, index);
         await close(fd);
         return index
     }

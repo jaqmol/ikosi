@@ -38,10 +38,8 @@ export const readIndex = async (fsRead: FSReadFn, fd: number) :Promise<Map<strin
 };
 
 export const writeIndex = async (
-    fsStats: FSStatsFn, 
     fsRead: FSReadFn, 
     fsWrite: FSWriteFn, 
-    filepath: string, 
     fd: number, 
     index: Map<string, number>,
 ) :Promise<Span[]> => {
@@ -53,7 +51,7 @@ export const writeIndex = async (
     const storageString = JSON.stringify(storageFormat);
     const storageBuffer = Buffer.from(storageString);
 
-    const write = MakeDataWriter(fsStats, fsWrite, filepath, fd, occupiedSpans);
+    const write = MakeDataWriter(fsWrite, fd, occupiedSpans);
     const writtenSpans = await write(storageBuffer);
     indexOffset = writtenSpans[0].offset;
 
