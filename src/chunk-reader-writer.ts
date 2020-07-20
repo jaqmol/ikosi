@@ -1,21 +1,20 @@
 import {
-    FSReadFn,
-    FSWriteFn,
     ChunkReader,
     Span,
+    BufferSpan,
 } from './types';
-import {
-    ReadFn,
-    WriteFn,
-} from './wrappers';
+
 import {NumberFormat} from './number-format';
 
-export const MakeChunkReader = (fsRead: FSReadFn, fd: number, startOffset: number) :ChunkReader => {
-    const read = ReadFn(fsRead);
-    
+import { 
+    readFromFile,
+    writeToFile,
+} from "./file-utils";
+
+export const MakeChunkReader = (fd: number, startOffset: number) :ChunkReader => {
     const length = async () :Promise<number> => {
         const span = {offset: startOffset, length: NumberFormat.bufferifiedLength};
-        const lenBuff = await read(fd, span);
+        const lenBuff = await readFromFile(fd, span);
         return NumberFormat.parse(lenBuff);
     };
 
@@ -27,7 +26,7 @@ export const MakeChunkReader = (fsRead: FSReadFn, fd: number, startOffset: numbe
             offset: startOffset + len - NumberFormat.bufferifiedLength, 
             length: NumberFormat.bufferifiedLength,
         };
-        const continuationBuff = await read(fd, continuationSpan);
+        const continuationBuff = await readFromFile(fd, continuationSpan);
         return NumberFormat.parse(continuationBuff);
     };
     
@@ -46,7 +45,7 @@ export const MakeChunkReader = (fsRead: FSReadFn, fd: number, startOffset: numbe
 
     const data = async () :Promise<Buffer> => {
         const span = await dataSpan();
-        return read(fd, span);
+        return readFromFile(fd, span);
     };
 
     return {continuation, envelopeSpan, dataSpan, data};
@@ -57,21 +56,21 @@ export type ChunkWritingResult = [
     (position: number) => Promise<void>,
 ]
 
-export const MakeChunkWriter = (fsWrite: FSWriteFn, fd: number) => {
-    const write = WriteFn(fsWrite);
-
-    // Public
-    
-    return async (data: Buffer, dataSpan: Span, space: Span) :Promise<ChunkWritingResult> => {
-        const requiredLength = dataSpan.length + NumberFormat.twiceBufferifiedLength;
-        if (space.length < requiredLength) throw new Error(`Space length (${space.length}) too small for data span length (${dataSpan.length})`);
+export const MakeChunkWriter = (fd: number) => {
+    return async (bufferSpan: BufferSpan, space: Span) :Promise<ChunkWritingResult> => {
+        const requiredLength = bufferSpan.length + NumberFormat.twiceBufferifiedLength;
+        if (space.length < requiredLength) throw new Error(`Space length (${space.length}) too small for data span length (${bufferSpan.length})`);
         const dataFilePosition = space.offset + NumberFormat.bufferifiedLength;
-        const lengthWritten = await write(fd, data, dataSpan, dataFilePosition);
+        const lengthWritten = await writeToFile(fd, bufferSpan, dataFilePosition);
         
         const occupiedLength = lengthWritten + NumberFormat.twiceBufferifiedLength;
         const occupiedLengthBuff = NumberFormat.bufferify(occupiedLength);
-        const occupiedLengthSpan = {offset: 0, length: occupiedLengthBuff.length};
-        await write(fd, occupiedLengthBuff, occupiedLengthSpan, space.offset);
+        const occupiedLengthBuffSpan = {
+            buffer: occupiedLengthBuff,
+            offset: 0, 
+            length: occupiedLengthBuff.length,
+        };
+        await writeToFile(fd, occupiedLengthBuffSpan, space.offset);
 
         const occupied = {offset: space.offset, length: occupiedLength};
 
@@ -80,8 +79,12 @@ export const MakeChunkWriter = (fsWrite: FSWriteFn, fd: number) => {
             async (continuation: number) => {
                 const contFilePosition = occupied.offset + occupied.length - NumberFormat.bufferifiedLength;
                 const contBuff = NumberFormat.bufferify(continuation);
-                const contSpan = {offset: 0, length: contBuff.length};
-                await write(fd, contBuff, contSpan, contFilePosition);
+                const contBuffSpan = {
+                    buffer: contBuff,
+                    offset: 0, 
+                    length: contBuff.length,
+                };
+                await writeToFile(fd, contBuffSpan, contFilePosition);
             },
         ];
     };

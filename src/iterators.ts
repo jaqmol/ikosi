@@ -1,19 +1,18 @@
-import {
-    FSReadFn,
-} from './types';
 import { 
     MakeDataReader,
 } from "./data-reader-writer";
 
+import { 
+    openFile,
+    closeFile,
+} from "./file-utils";
+
 export const MakeEntriesIterator = (
-    openForReading: (filepath: string) => Promise<number>,
-    fsRead: FSReadFn,
-    close: (fd: number) => Promise<void>, 
     filepath: string,
     index: Map<string, number>,
 ) :AsyncIterator<[string, Buffer], undefined, undefined> => {
     let fileDescriptor = async () => {
-        const fd = await openForReading(filepath);
+        const fd = await openFile(filepath);
         fileDescriptor = async () => fd;
         return fd;
     };
@@ -24,10 +23,10 @@ export const MakeEntriesIterator = (
         const [key, offset] :[string, number] = result.value;
         const done = !!result.done;
         const fd = await fileDescriptor();
-        const reader = MakeDataReader(fsRead, fd, offset);
+        const reader = MakeDataReader(fd, offset);
         const data = await reader.data();
         if (done) {
-            await close(fd);
+            await closeFile(fd);
         }
         return {
             value: [key, data],
@@ -54,14 +53,11 @@ export const MakeKeysIterator = (
 }
 
 export const MakeValuesIterator = (
-    openForReading: (filepath: string) => Promise<number>,
-    fsRead: FSReadFn,
-    close: (fd: number) => Promise<void>, 
     filepath: string,
     index: Map<string, number>,
 ) :AsyncIterator<Buffer, undefined, undefined> => {
     let fileDescriptor = async () => {
-        const fd = await openForReading(filepath);
+        const fd = await openFile(filepath);
         fileDescriptor = async () => fd;
         return fd;
     };
@@ -72,10 +68,10 @@ export const MakeValuesIterator = (
         const offset :number = result.value;
         const done = !!result.done;
         const fd = await fileDescriptor();
-        const reader = MakeDataReader(fsRead, fd, offset);
+        const reader = MakeDataReader(fd, offset);
         const value = await reader.data();
         if (done) {
-            await close(fd);
+            await closeFile(fd);
         }
         return { value, done };
     };

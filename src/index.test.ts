@@ -5,25 +5,25 @@ import {
     filterOdd,
 } from "./test-utils";
 
-test('Ikosi', async () => {
-    const ikosi = await MakeIkosi('build/test-a.icf');
+test('Ikosi simple test', async () => {
+    const filepath = 'build/test-simple.icf';
+    const ikosiA = await MakeIkosi(filepath);
     
-    const keysAndValues = loremIpsum.map<[string, Buffer]>((sentence, i) => [
-        `k:${String.fromCharCode(97 + i)}`,
-        Buffer.from(sentence),
-    ]);
+    const valueA = Buffer.from(loremIpsum[0]);
+    await ikosiA.set('a', valueA);
 
-    await Promise.all(keysAndValues.map(args => ikosi.set(...args)));
-    
+    const rereadValueABuff = await ikosiA.get('a');
+    expect(rereadValueABuff).toBeDefined();
+    if (rereadValueABuff) {
+        const rereadValueA = rereadValueABuff.toString();
+        expect(rereadValueA).toBe(loremIpsum[0]);
+    }
 
-    // for (let i = 0; i < loremIpsum.length; i++) {
-    //     const sentence = loremIpsum[i];
-    //     const key = `k:${String.fromCharCode(97 + i)}`;
-    //     const value = Buffer.from(sentence);
-    //     return ikosi.set(key, value);
-    // }
-    // await Promise.all(loremIpsum.map((s, i) => {
-        
-    //     return ikosi.set(key, value);
-    // }));
+    const ikosiB = await MakeIkosi(filepath);
+    const rereadValueBBuff = await ikosiB.get('a');
+    expect(rereadValueBBuff).toBeDefined();
+    if (rereadValueBBuff) {
+        const rereadValueB = rereadValueBBuff.toString();
+        expect(rereadValueB).toBe(loremIpsum[0]);
+    }
 });

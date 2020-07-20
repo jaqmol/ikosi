@@ -1,14 +1,6 @@
 import {
-    FSReadFn,
-    FSWriteFn,
-    FSStatsFn,
     Span,
-    IndexStorageFormat,
 } from './types';
-
-import {
-    SizeFn,
-} from './wrappers';
 
 import {
     MakeDataReader,
@@ -100,17 +92,17 @@ const lastSpanEndIndex = (spans: Span[]) => {
         .reduce(max, NumberFormat.bufferifiedLength);
 }
 
-export const collectOccupiedSpans = async (fsRead: FSReadFn, fd: number, indexOffset: number, valueOffsets: number[]) :Promise<Span[]> => {
+export const collectOccupiedSpans = async (fd: number, indexOffset: number, valueOffsets: number[]) :Promise<Span[]> => {
     const acc :Span[] = [];
 
     if (indexOffset > 0) {
-        const reader = MakeDataReader(fsRead, fd, indexOffset);
+        const reader = MakeDataReader(fd, indexOffset);
         const spans = await reader.envelopeSpans();
         acc.push(...spans);
     }
 
     for (const offset of valueOffsets) {
-        const reader = MakeDataReader(fsRead, fd, offset);
+        const reader = MakeDataReader(fd, offset);
         const spans = await reader.envelopeSpans();
         acc.push(...spans);
     }
