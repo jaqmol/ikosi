@@ -1,35 +1,16 @@
-import { 
-    MakeDataReader,
-} from "./data-reader-writer";
-
-import { 
-    openFile,
-    closeFile,
-} from "./file-utils";
-
 export const MakeEntriesIterator = (
-    filepath: string,
-    index: Map<string, number>,
-) :AsyncIterator<[string, Buffer], undefined, undefined> => {
-    let fileDescriptor = async () => {
-        const fd = await openFile(filepath);
-        fileDescriptor = async () => fd;
-        return fd;
-    };
+    index: Map<string, [number, number]>,
+    data: Uint8Array,
+) :Iterator<[string, Uint8Array]> => {
     const ito = index.entries();
 
-    const next = async () :Promise<IteratorResult<[string, Buffer]>> => {
+    const next = () :IteratorResult<[string, Uint8Array]> => {
         const result = ito.next();
-        const [key, offset] :[string, number] = result.value;
+        const [key, [startIndex, endIndex]] :[string, [number, number]] = result.value;
         const done = !!result.done;
-        const fd = await fileDescriptor();
-        const reader = MakeDataReader(fd, offset);
-        const data = await reader.data();
-        if (done) {
-            await closeFile(fd);
-        }
+        const value = data.slice(startIndex, endIndex);
         return {
-            value: [key, data],
+            value: [key, value],
             done,
         };
     };
@@ -38,11 +19,11 @@ export const MakeEntriesIterator = (
 }
 
 export const MakeKeysIterator = (
-    index: Map<string, number>,
-) :AsyncIterator<string, undefined, undefined> => {
+    index: Map<string, [number, number]>,
+) :Iterator<string> => {
     const ito = index.keys();
 
-    const next = async () :Promise<IteratorResult<string>> => {
+    const next = () :IteratorResult<string> => {
         const result = ito.next();
         const value :string = result.value;
         const done = !!result.done;
@@ -53,26 +34,16 @@ export const MakeKeysIterator = (
 }
 
 export const MakeValuesIterator = (
-    filepath: string,
-    index: Map<string, number>,
-) :AsyncIterator<Buffer, undefined, undefined> => {
-    let fileDescriptor = async () => {
-        const fd = await openFile(filepath);
-        fileDescriptor = async () => fd;
-        return fd;
-    };
+    index: Map<string, [number, number]>,
+    data: Uint8Array,
+) :Iterator<Uint8Array> => {
     const ito = index.values();
 
-    const next = async () :Promise<IteratorResult<Buffer>> => {
+    const next = () :IteratorResult<Uint8Array> => {
         const result = ito.next();
-        const offset :number = result.value;
+        const [startIndex, endIndex] :[number, number] = result.value;
         const done = !!result.done;
-        const fd = await fileDescriptor();
-        const reader = MakeDataReader(fd, offset);
-        const value = await reader.data();
-        if (done) {
-            await closeFile(fd);
-        }
+        const value = data.slice(startIndex, endIndex);
         return { value, done };
     };
 

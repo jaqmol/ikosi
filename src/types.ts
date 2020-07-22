@@ -3,24 +3,37 @@ export interface Span {
     length: number;
 }
 
-export interface BufferSpan {
-    buffer: Buffer;
-    offset: number;
-    length: number;
+export interface ImmutableIkosi {
+    entries() : Iterator<[string, Uint8Array]>
+    get(key: string) : Uint8Array|undefined
+    has(key: string) : boolean
+    keys() : Iterator<string>
+    size() : number
+    values() : Iterator<Uint8Array>
 }
 
-export interface ChunkReader {
-    continuation() :Promise<number>
-    envelopeSpan() :Promise<Span>
-    dataSpan() :Promise<Span>
-    data() :Promise<Buffer>
+export interface ImmutableTypedIkosi extends ImmutableIkosi {
+    getBlob(key: string) : Blob|undefined
+    getBoolean(key: string) : boolean|undefined
+    getJSON<T=any>(key: string) : T|undefined
+    getNumber(key: string) : number|undefined
+    getString(key: string) : string|undefined
 }
 
-export interface DataReader {
-    envelopeSpans() :Promise<Span[]>
-    dataSpans() :Promise<Span[]>
-    data() :Promise<Buffer>
+export interface MutableIkosi extends ImmutableIkosi {
+    clear() : void
+    delete(key: string) : boolean
+    serialize() : ArrayBuffer
+    set(key: string, data: Uint8Array) : MutableIkosi
 }
 
-export type IndexStorageFormat = [string, number][];
+export interface MutableTypedIkosi extends MutableIkosi, ImmutableTypedIkosi {
+    setBlob(key: string, value: Blob) : Promise<MutableTypedIkosi>
+    setBoolean(key: string, value: boolean) : MutableTypedIkosi
+    setJSON<T=any>(key: string, value: T) : MutableTypedIkosi
+    setNumber(key: string, value: number) : MutableTypedIkosi
+    setString(key: string, value: string) : MutableTypedIkosi
+}
+
+export type IndexStorageFormat = [string, number, number][];
 
