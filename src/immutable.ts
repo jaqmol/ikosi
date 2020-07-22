@@ -1,6 +1,6 @@
 import { 
+    ImmutableBackend,
     ImmutableIkosi,
-    ImmutableTypedIkosi,
 } from "./types";
 
 import {
@@ -13,7 +13,11 @@ import {
     extractIndex,
 } from "./index-format";
 
-export const MakeImmutableIkosi = (buffer: ArrayBuffer) : ImmutableIkosi => {
+import {  
+    decodeBytesToString,
+} from "./text-encoding";
+
+export const MakeImmutableBackend = (buffer: ArrayBuffer) : ImmutableBackend => {
     const data = new Uint8Array(buffer);
     const index = extractIndex(data);
 
@@ -39,14 +43,14 @@ export const MakeImmutableIkosi = (buffer: ArrayBuffer) : ImmutableIkosi => {
     };
 }
 
-export const MakeImmutableTypedIkosi = (immutableIkosi: ImmutableIkosi) : ImmutableTypedIkosi => {
+export const MakeImmutableIkosi = (backend: ImmutableBackend) : ImmutableIkosi => {
     const getBlob = (key: string) : Blob|undefined => {
-        const bytes = immutableIkosi.get(key);
+        const bytes = backend.get(key);
         if (!bytes) return;
         return new Blob([bytes]);
     };
     const getBoolean = (key: string) : boolean|undefined => {
-        const bytes = immutableIkosi.get(key);
+        const bytes = backend.get(key);
         if (!bytes) return;
         return bytes[0] > 0;
     };
@@ -61,14 +65,13 @@ export const MakeImmutableTypedIkosi = (immutableIkosi: ImmutableIkosi) : Immuta
         return Number.parseInt(stringValue, 16);
     };
     const getString = (key: string) : string|undefined => {
-        const bytes = immutableIkosi.get(key);
+        const bytes = backend.get(key);
         if (!bytes) return;
-        const decoder = new TextDecoder();
-        return decoder.decode(bytes);
+        return decodeBytesToString(bytes);
     };
 
     return {
-        ...immutableIkosi,
+        ...backend,
         getBlob,
         getBoolean,
         getJSON,

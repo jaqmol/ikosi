@@ -3,7 +3,7 @@ export interface Span {
     length: number;
 }
 
-export interface ImmutableIkosi {
+export interface ImmutableBackend {
     entries() : Iterator<[string, Uint8Array]>
     get(key: string) : Uint8Array|undefined
     has(key: string) : boolean
@@ -12,7 +12,7 @@ export interface ImmutableIkosi {
     values() : Iterator<Uint8Array>
 }
 
-export interface ImmutableTypedIkosi extends ImmutableIkosi {
+export interface ImmutableIkosi extends ImmutableBackend {
     getBlob(key: string) : Blob|undefined
     getBoolean(key: string) : boolean|undefined
     getJSON<T=any>(key: string) : T|undefined
@@ -20,20 +20,20 @@ export interface ImmutableTypedIkosi extends ImmutableIkosi {
     getString(key: string) : string|undefined
 }
 
-export interface MutableIkosi extends ImmutableIkosi {
+export interface MutableBackend extends ImmutableBackend {
     clear() : void
     delete(key: string) : boolean
     serialize() : ArrayBuffer
-    set(key: string, data: Uint8Array) : MutableIkosi
+    set(key: string, data: Uint8Array) : void
 }
 
-export interface MutableTypedIkosi extends MutableIkosi, ImmutableTypedIkosi {
-    setBlob(key: string, value: Blob) : Promise<MutableTypedIkosi>
-    setBoolean(key: string, value: boolean) : MutableTypedIkosi
-    setJSON<T=any>(key: string, value: T) : MutableTypedIkosi
-    setNumber(key: string, value: number) : MutableTypedIkosi
-    setString(key: string, value: string) : MutableTypedIkosi
+export interface MutableIkosi extends MutableBackend, ImmutableIkosi {
+    setBlob(key: string, value: Blob) : Promise<void>
+    setBoolean(key: string, value: boolean) : void
+    setJSON<T=any>(key: string, value: T) : void
+    setNumber(key: string, value: number) : void
+    setString(key: string, value: string) : void
 }
 
-export type IndexStorageFormat = [string, number, number][];
+// export type IndexStorageFormat = [string, number, number][];
 

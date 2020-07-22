@@ -1,22 +1,22 @@
 import { 
+    MutableBackend,
     MutableIkosi,
-    MutableTypedIkosi,
 } from "./types";
 
 import {
     extractDataIndex,
-    encodeIndex,
 } from "./index-format";
-
-import {
-    NumberFormat,
-} from "./number-format";
 
 import {
     serializeDataIndex,
 } from "./serialize";
 
-export const MakeMutableIkosi = (buffer: ArrayBuffer|undefined) : MutableIkosi => {
+import {  
+    encodeStringToBytes,
+    decodeBytesToString,
+} from "./text-encoding";
+
+export const MakeMutableBackend = (buffer?: ArrayBuffer) : MutableBackend => {
     const dataIndex = buffer 
         ? extractDataIndex(new Uint8Array(buffer)) 
         : new Map<string, Uint8Array>();
@@ -30,12 +30,11 @@ export const MakeMutableIkosi = (buffer: ArrayBuffer|undefined) : MutableIkosi =
     const serialize = () => serializeDataIndex(dataIndex);
     const set = (key: string, data: Uint8Array) => {
         dataIndex.set(key, data);
-        return instance;
     };
     const size = () => dataIndex.size;
     const values = () => dataIndex.values();
 
-    const instance :MutableIkosi = {
+    return {
         clear,
         'delete': deleteFn,
         entries,
@@ -47,18 +46,16 @@ export const MakeMutableIkosi = (buffer: ArrayBuffer|undefined) : MutableIkosi =
         size,
         values,
     };
-
-    return instance;
 }
 
-export const MakeMutableTypedIkosi = (mutableIkosi: MutableIkosi) : MutableTypedIkosi => {
+export const MakeMutableIkosi = (backend: MutableBackend) : MutableIkosi => {
     const getBlob = (key: string) : Blob|undefined => {
-        const bytes = mutableIkosi.get(key);
+        const bytes = backend.get(key);
         if (!bytes) return;
         return new Blob([bytes]);
     };
     const getBoolean = (key: string) : boolean|undefined => {
-        const bytes = mutableIkosi.get(key);
+        const bytes = backend.get(key);
         if (!bytes) return;
         return bytes[0] > 0;
     };
@@ -73,41 +70,36 @@ export const MakeMutableTypedIkosi = (mutableIkosi: MutableIkosi) : MutableTyped
         return Number.parseInt(stringValue, 16);
     };
     const getString = (key: string) : string|undefined => {
-        const bytes = mutableIkosi.get(key);
+        const bytes = backend.get(key);
         if (!bytes) return;
-        const decoder = new TextDecoder();
-        return decoder.decode(bytes);
+        return decodeBytesToString(bytes);
     };
 
-    const setBlob = async (key: string, value: Blob) : Promise<MutableTypedIkosi> => {
+    const setBlob = async (key: string, value: Blob) : Promise<void> => {
         const buffer = await value.arrayBuffer();
         const bytes = new Uint8Array(buffer);
-        mutableIkosi.set(key, bytes);
-        return instance;
+        backend.set(key, bytes);
     };
-    const setBoolean = (key: string, value: boolean) : MutableTypedIkosi => {
+    const setBoolean = (key: string, value: boolean) : void => {
         const bytes = new Uint8Array(1);
         bytes[0] = value ? 1 : 0;
-        mutableIkosi.set(key, bytes);
-        return instance;
+        backend.set(key, bytes);
     };
-    const setJSON = <T=any>(key: string, value: T) : MutableTypedIkosi => {
+    const setJSON = <T=any>(key: string, value: T) : void => {
         const stringValue = JSON.stringify(value);
-        return setString(key, stringValue);
+        setString(key, stringValue);
     };
-    const setNumber = (key: string, value: number) : MutableTypedIkosi => {
+    const setNumber = (key: string, value: number) : void => {
         const stringValue = value.toString(16);
-        return setString(key, stringValue);
+        setString(key, stringValue);
     };
-    const setString = (key: string, value: string) : MutableTypedIkosi => {
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(value);
-        mutableIkosi.set(key, bytes);
-        return instance;
+    const setString = (key: string, value: string) : void => {
+        const bytes = encodeStringToBytes(value);
+        backend.set(key, bytes);
     };
 
-    const instance : MutableTypedIkosi = {
-        ...mutableIkosi,
+    return {
+        ...backend,
         getBlob,
         getBoolean,
         getJSON,
@@ -119,6 +111,4 @@ export const MakeMutableTypedIkosi = (mutableIkosi: MutableIkosi) : MutableTyped
         setNumber,
         setString,
     };
-
-    return instance;
 };

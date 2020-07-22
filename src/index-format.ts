@@ -2,6 +2,11 @@ import {
     NumberFormat,
 } from "./number-format";
 
+import {
+    encodeStringToBytes,
+    decodeBytesToString,
+} from "./text-encoding";
+
 export const extractIndex = (data: Uint8Array) => {
     const indexStartIndexData = data.slice(0, NumberFormat.encodedLength);
     const indexStartIndex = NumberFormat.decode(indexStartIndexData);
@@ -10,8 +15,7 @@ export const extractIndex = (data: Uint8Array) => {
 };
 
 export const decodeIndex = (indexData: Uint8Array) => {
-    const decoder = new TextDecoder();
-    const indexString = decoder.decode(indexData);
+    const indexString = decodeBytesToString(indexData);
     const indexStorageFormat: [string, number, number][] = JSON.parse(indexString);
     const index = new Map<string, [number, number]>();
     for (const [key, startIndex, endIndex] of indexStorageFormat) {
@@ -26,8 +30,7 @@ export const encodeIndex = (index: Map<string, [number, number]>) => {
         indexStorageFormat.push([key, startIndex, endIndex]);
     }
     const indexString = JSON.stringify(indexStorageFormat);
-    const encoder = new TextEncoder();
-    return encoder.encode(indexString);
+    return encodeStringToBytes(indexString);
 };
 
 export const extractDataIndex = (data: Uint8Array) => {

@@ -1,3 +1,11 @@
+import {
+    MakeMutableBackend,
+    MakeMutableIkosi,
+} from "./mutable";
+
+import {
+    encodeStringToBytes,
+} from "./text-encoding";
 
 export const filterEven = <T=any>(_: T, index: number) :boolean => (index % 2) === 0;
 export const filterOdd = <T=any>(_: T, index: number) :boolean => (index % 2) !== 0;
@@ -16,3 +24,48 @@ export const loremIpsum = [
     'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ',
     'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. ',
 ];
+
+export const loremIpsumIkosiStorageFormat = () => {
+    const iko = MakeMutableBackend();
+    for (const [index, sentence] of loremIpsum.entries()) {
+        const sentenceBytes = encodeStringToBytes(sentence);
+        iko.set(keyFromIndex(index), sentenceBytes);
+    }
+    return iko.serialize();
+};
+
+export type JSONTestType = [boolean, number, string];
+
+export const multiTypeAExpectations = {
+    boolean: true,
+    number: 12000,
+    string: 'lorem ipsum',
+    json: [true, 12000, 'lorem ipsum'],
+};
+
+export const multiTypeBExpectations = {
+    boolean: false,
+    number: 64000000,
+    string: 'ipsum lorem',
+    json: [true, 64000000, 'ipsum lorem'],
+};
+
+export const multiTypeAIkosiStorageFormat = () => {
+    const iko = MakeMutableIkosi(MakeMutableBackend());
+    iko.setBoolean('boolean', multiTypeAExpectations.boolean);
+    iko.setNumber('number', multiTypeAExpectations.number);
+    iko.setString('string', multiTypeAExpectations.string);
+    iko.setJSON<JSONTestType>('json', multiTypeAExpectations.json as JSONTestType);
+    return iko.serialize();
+};
+
+export const multiTypeBIkosiStorageFormat = () => {
+    const iko = MakeMutableIkosi(MakeMutableBackend());
+    iko.setBoolean('boolean', multiTypeBExpectations.boolean);
+    iko.setNumber('number', multiTypeBExpectations.number);
+    iko.setString('string', multiTypeBExpectations.string);
+    iko.setJSON<JSONTestType>('json', multiTypeBExpectations.json as JSONTestType);
+    return iko.serialize();
+};
+
+export const keyFromIndex = (index: number) => `${String.fromCharCode(97+index)}:${index}`;
