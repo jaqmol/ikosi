@@ -1,25 +1,38 @@
 {
-  "name": "ikosi",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@ikosi/ikosi",
+  "version": "0.0.6",
+  "description": "Compact binary file format (for browsers too) with immutable and mutable APIs. Stores primitive, structured and binary data in a single file. Suitable for packing resources.",
   "jest": {
-    "rootDir": "build",
+    "rootDir": "dist",
     "verbose": true
   },
-  "main": "index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "jest",
-    "build": "rimraf ./build && tsc",
-    "build-and-test": "npm run build && npm run test"
+    "build": "rimraf ./dist && tsc",
+    "build-and-test": "npm run dist && npm run test"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Ronny Reichmann",
+  "license": "MIT",
   "devDependencies": {
     "@types/jest": "^25.2.3",
     "@types/node": "^14.0.11",
     "jest": "^26.0.1",
     "rimraf": "^3.0.2",
     "typescript": "^3.9.5"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaqmol/ikosi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jaqmol/ikosi/issues"
+  },
+  "homepage": "https://github.com/jaqmol/ikosi#readme"
 }
