@@ -1,3 +1,3 @@
-import { ImmutableBackend, ImmutableIkosi } from "./types";
-export declare const MakeImmutableBackend: (buffer: ArrayBuffer) => ImmutableBackend;
-export declare const MakeImmutableIkosi: (backend: ImmutableBackend) => ImmutableIkosi;
+import { ImmutableIkosiBackend, ImmutableIkosi } from "./types";
+export declare const MakeImmutableIkosiBackend: (buffer: ArrayBuffer) => ImmutableIkosiBackend;
+export declare const MakeImmutableIkosi: (backend: ImmutableIkosiBackend) => ImmutableIkosi;

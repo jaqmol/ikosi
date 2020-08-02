@@ -48,7 +48,7 @@ exports.loremIpsum = [
 ];
 exports.loremIpsumIkosiStorageFormat = function () {
     var e_1, _a;
-    var iko = mutable_1.MakeMutableBackend();
+    var iko = mutable_1.MakeMutableIkosiBackend();
     try {
         for (var _b = __values(exports.loremIpsum.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), index = _d[0], sentence = _d[1];
@@ -78,7 +78,7 @@ exports.multiTypeBExpectations = {
     json: [true, 64000000, 'ipsum lorem'],
 };
 exports.multiTypeAIkosiStorageFormat = function () {
-    var iko = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableBackend());
+    var iko = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableIkosiBackend());
     iko.setBoolean('boolean', exports.multiTypeAExpectations.boolean);
     iko.setNumber('number', exports.multiTypeAExpectations.number);
     iko.setString('string', exports.multiTypeAExpectations.string);
@@ -86,7 +86,7 @@ exports.multiTypeAIkosiStorageFormat = function () {
     return iko.serialize();
 };
 exports.multiTypeBIkosiStorageFormat = function () {
-    var iko = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableBackend());
+    var iko = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableIkosiBackend());
     iko.setBoolean('boolean', exports.multiTypeBExpectations.boolean);
     iko.setNumber('number', exports.multiTypeBExpectations.number);
     iko.setString('string', exports.multiTypeBExpectations.string);

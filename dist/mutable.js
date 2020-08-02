@@ -47,11 +47,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MakeMutableIkosi = exports.MakeMutableBackend = void 0;
+exports.MakeMutableIkosi = exports.MakeMutableIkosiBackend = void 0;
 var index_format_1 = require("./index-format");
 var serialize_1 = require("./serialize");
 var text_encoding_1 = require("./text-encoding");
-exports.MakeMutableBackend = function (buffer) {
+exports.MakeMutableIkosiBackend = function (buffer) {
     var dataIndex = buffer
         ? index_format_1.extractDataIndex(new Uint8Array(buffer))
         : new Map();

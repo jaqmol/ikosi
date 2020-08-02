@@ -27,11 +27,11 @@ var __read = (this && this.__read) || function (o, n) {
     return ar;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MakeImmutableIkosi = exports.MakeImmutableBackend = void 0;
+exports.MakeImmutableIkosi = exports.MakeImmutableIkosiBackend = void 0;
 var iterators_1 = require("./iterators");
 var index_format_1 = require("./index-format");
 var text_encoding_1 = require("./text-encoding");
-exports.MakeImmutableBackend = function (buffer) {
+exports.MakeImmutableIkosiBackend = function (buffer) {
     var data = new Uint8Array(buffer);
     var index = index_format_1.extractIndex(data);
     var entries = function () { return iterators_1.MakeEntriesIterator(index, data); };

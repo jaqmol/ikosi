@@ -31,7 +31,7 @@ var mutable_1 = require("./mutable");
 var text_encoding_1 = require("./text-encoding");
 var test_utils_1 = require("./test-utils");
 test('Singular mutable backend set test', function () {
-    var iko = mutable_1.MakeMutableBackend();
+    var iko = mutable_1.MakeMutableIkosiBackend();
     var sentenceBytes = text_encoding_1.encodeStringToBytes(test_utils_1.loremIpsum[0]);
     iko.set('a', sentenceBytes);
     var retrievedSentenceBytes = iko.get('a');
@@ -43,7 +43,7 @@ test('Singular mutable backend set test', function () {
 });
 test('Multiple mutable backend set tests', function () {
     var e_1, _a, e_2, _b;
-    var iko = mutable_1.MakeMutableBackend();
+    var iko = mutable_1.MakeMutableIkosiBackend();
     try {
         for (var _c = __values(test_utils_1.loremIpsum.entries()), _d = _c.next(); !_d.done; _d = _c.next()) {
             var _e = __read(_d.value, 2), index = _e[0], sentence = _e[1];
@@ -78,11 +78,11 @@ test('Multiple mutable backend set tests', function () {
     }
 });
 test('Singular mutable backend serialize test', function () {
-    var ikoA = mutable_1.MakeMutableBackend();
+    var ikoA = mutable_1.MakeMutableIkosiBackend();
     var sentenceBytes = text_encoding_1.encodeStringToBytes(test_utils_1.loremIpsum[0]);
     ikoA.set('a', sentenceBytes);
     var storageFormat = ikoA.serialize();
-    var ikoB = mutable_1.MakeMutableBackend(storageFormat);
+    var ikoB = mutable_1.MakeMutableIkosiBackend(storageFormat);
     var retrievedSentenceBytes = ikoB.get('a');
     expect(retrievedSentenceBytes).toBeDefined();
     if (retrievedSentenceBytes) {
@@ -93,7 +93,7 @@ test('Singular mutable backend serialize test', function () {
 test('Multiple mutable backend serialize tests', function () {
     var e_3, _a;
     var storageFormat = test_utils_1.loremIpsumIkosiStorageFormat();
-    var iko = mutable_1.MakeMutableBackend(storageFormat);
+    var iko = mutable_1.MakeMutableIkosiBackend(storageFormat);
     try {
         for (var _b = __values(test_utils_1.loremIpsum.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), index = _d[0], expectedSentence = _d[1];
@@ -114,7 +114,7 @@ test('Multiple mutable backend serialize tests', function () {
     }
 });
 test('Mutable ikosi types test', function () {
-    var ikoA = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableBackend());
+    var ikoA = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableIkosiBackend());
     ikoA.setBoolean('boolean', true);
     var retrievedBool = ikoA.getBoolean('boolean');
     expect(retrievedBool).toBe(true);
@@ -140,7 +140,7 @@ test('Mutable ikosi types test', function () {
     retrievedJson = ikoA.getJSON('json');
     expect(retrievedJson).toEqual([false, 64000000, 'ipsum lorem']);
     var storageFormat = ikoA.serialize();
-    var ikoB = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableBackend(storageFormat));
+    var ikoB = mutable_1.MakeMutableIkosi(mutable_1.MakeMutableIkosiBackend(storageFormat));
     retrievedBool = ikoB.getBoolean('boolean');
     expect(retrievedBool).toBe(false);
     retrievedNum = ikoB.getNumber('number');

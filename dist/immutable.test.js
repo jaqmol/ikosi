@@ -33,7 +33,7 @@ var immutable_1 = require("./immutable");
 test('Multiple immutable backend deserialize and get tests', function () {
     var e_1, _a;
     var storageFormat = test_utils_1.loremIpsumIkosiStorageFormat();
-    var backend = immutable_1.MakeImmutableBackend(storageFormat);
+    var backend = immutable_1.MakeImmutableIkosiBackend(storageFormat);
     try {
         for (var _b = __values(test_utils_1.loremIpsum.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), index = _d[0], expectedSentence = _d[1];
@@ -55,7 +55,7 @@ test('Multiple immutable backend deserialize and get tests', function () {
 });
 test('Multiple multi-type immutable deserialize and get tests', function () {
     var storageFormat = test_utils_1.multiTypeAIkosiStorageFormat();
-    var iko = immutable_1.MakeImmutableIkosi(immutable_1.MakeImmutableBackend(storageFormat));
+    var iko = immutable_1.MakeImmutableIkosi(immutable_1.MakeImmutableIkosiBackend(storageFormat));
     expect(iko.size()).toBe(4);
     var boolValue = iko.getBoolean('boolean');
     expect(boolValue).toBe(test_utils_1.multiTypeAExpectations.boolean);

@@ -1,5 +1,5 @@
 import { 
-    ImmutableBackend,
+    ImmutableIkosiBackend,
     ImmutableIkosi,
 } from "./types";
 
@@ -17,7 +17,7 @@ import {
     decodeBytesToString,
 } from "./text-encoding";
 
-export const MakeImmutableBackend = (buffer: ArrayBuffer) : ImmutableBackend => {
+export const MakeImmutableIkosiBackend = (buffer: ArrayBuffer) : ImmutableIkosiBackend => {
     const data = new Uint8Array(buffer);
     const index = extractIndex(data);
 
@@ -43,7 +43,7 @@ export const MakeImmutableBackend = (buffer: ArrayBuffer) : ImmutableBackend => 
     };
 }
 
-export const MakeImmutableIkosi = (backend: ImmutableBackend) : ImmutableIkosi => {
+export const MakeImmutableIkosi = (backend: ImmutableIkosiBackend) : ImmutableIkosi => {
     const getBlob = (key: string) : Blob|undefined => {
         const bytes = backend.get(key);
         if (!bytes) return;

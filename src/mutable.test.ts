@@ -1,5 +1,5 @@
 import {
-    MakeMutableBackend,
+    MakeMutableIkosiBackend,
     MakeMutableIkosi,
 } from "./mutable";
 
@@ -15,7 +15,7 @@ import {
 } from "./test-utils";
 
 test('Singular mutable backend set test', () => {
-    const iko = MakeMutableBackend();
+    const iko = MakeMutableIkosiBackend();
     const sentenceBytes = encodeStringToBytes(loremIpsum[0]);
     iko.set('a', sentenceBytes);
     const retrievedSentenceBytes = iko.get('a');
@@ -27,7 +27,7 @@ test('Singular mutable backend set test', () => {
 });
 
 test('Multiple mutable backend set tests', () => {
-    const iko = MakeMutableBackend();
+    const iko = MakeMutableIkosiBackend();
     for (const [index, sentence] of loremIpsum.entries()) {
         const sentenceBytes = encodeStringToBytes(sentence);
         iko.set(keyFromIndex(index), sentenceBytes);
@@ -43,11 +43,11 @@ test('Multiple mutable backend set tests', () => {
 });
 
 test('Singular mutable backend serialize test', () => {
-    const ikoA = MakeMutableBackend();
+    const ikoA = MakeMutableIkosiBackend();
     const sentenceBytes = encodeStringToBytes(loremIpsum[0]);
     ikoA.set('a', sentenceBytes);
     const storageFormat = ikoA.serialize();
-    const ikoB = MakeMutableBackend(storageFormat);
+    const ikoB = MakeMutableIkosiBackend(storageFormat);
     const retrievedSentenceBytes = ikoB.get('a');
     expect(retrievedSentenceBytes).toBeDefined();
     if (retrievedSentenceBytes) {
@@ -58,7 +58,7 @@ test('Singular mutable backend serialize test', () => {
 
 test('Multiple mutable backend serialize tests', () => {
     const storageFormat = loremIpsumIkosiStorageFormat();
-    const iko = MakeMutableBackend(storageFormat);
+    const iko = MakeMutableIkosiBackend(storageFormat);
     for (const [index, expectedSentence] of loremIpsum.entries()) {
         const sentenceBytes = iko.get(keyFromIndex(index));
         expect(sentenceBytes).toBeDefined();
@@ -70,7 +70,7 @@ test('Multiple mutable backend serialize tests', () => {
 });
 
 test('Mutable ikosi types test', () => {
-    const ikoA = MakeMutableIkosi(MakeMutableBackend());
+    const ikoA = MakeMutableIkosi(MakeMutableIkosiBackend());
     
     ikoA.setBoolean('boolean', true);
     let retrievedBool = ikoA.getBoolean('boolean');
@@ -102,7 +102,7 @@ test('Mutable ikosi types test', () => {
     expect(retrievedJson).toEqual([false, 64000000, 'ipsum lorem']);
 
     const storageFormat = ikoA.serialize();
-    const ikoB = MakeMutableIkosi(MakeMutableBackend(storageFormat));
+    const ikoB = MakeMutableIkosi(MakeMutableIkosiBackend(storageFormat));
 
     retrievedBool = ikoB.getBoolean('boolean');
     expect(retrievedBool).toBe(false);

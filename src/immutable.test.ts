@@ -7,13 +7,13 @@ import {
 } from "./test-utils";
 import { decodeBytesToString } from "./text-encoding";
 import { 
-    MakeImmutableBackend,
+    MakeImmutableIkosiBackend,
     MakeImmutableIkosi,
 } from "./immutable";
 
 test('Multiple immutable backend deserialize and get tests', () => {
     const storageFormat = loremIpsumIkosiStorageFormat();
-    const backend = MakeImmutableBackend(storageFormat);
+    const backend = MakeImmutableIkosiBackend(storageFormat);
     for (const [index, expectedSentence] of loremIpsum.entries()) {
         const sentenceBytes = backend.get(keyFromIndex(index));
         expect(sentenceBytes).toBeDefined();
@@ -26,7 +26,7 @@ test('Multiple immutable backend deserialize and get tests', () => {
 
 test('Multiple multi-type immutable deserialize and get tests', () => {
     const storageFormat = multiTypeAIkosiStorageFormat();
-    const iko = MakeImmutableIkosi(MakeImmutableBackend(storageFormat));
+    const iko = MakeImmutableIkosi(MakeImmutableIkosiBackend(storageFormat));
     expect(iko.size()).toBe(4);
     const boolValue = iko.getBoolean('boolean');
     expect(boolValue).toBe(multiTypeAExpectations.boolean);

@@ -1,3 +1,3 @@
-import { MutableBackend, MutableIkosi } from "./types";
-export declare const MakeMutableBackend: (buffer?: ArrayBuffer | undefined) => MutableBackend;
-export declare const MakeMutableIkosi: (backend: MutableBackend) => MutableIkosi;
+import { MutableIkosiBackend, MutableIkosi } from "./types";
+export declare const MakeMutableIkosiBackend: (buffer?: ArrayBuffer | undefined) => MutableIkosiBackend;
+export declare const MakeMutableIkosi: (backend: MutableIkosiBackend) => MutableIkosi;
