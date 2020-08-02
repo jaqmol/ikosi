@@ -34,6 +34,3 @@ export interface MutableIkosi extends MutableIkosiBackend, ImmutableIkosi {
     setNumber(key: string, value: number) : void
     setString(key: string, value: string) : void
 }
-
-// export type IndexStorageFormat = [string, number, number][];
-
