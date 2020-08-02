@@ -1,6 +1,6 @@
 {
   "name": "@ikosi/ikosi",
-  "version": "0.0.7",
+  "version": "0.7.0",
   "description": "Compact binary file format (for browsers too) with immutable and mutable APIs. Stores primitive, structured and binary data in a single file. Suitable for packing resources.",
   "jest": {
     "rootDir": "dist",

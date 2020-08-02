@@ -3,13 +3,11 @@ import {
     decodeBytesToString,
 } from "./text-encoding";
 
-const numberLength = 20; // 16
-const numberRadix = 10; // 16
-// const twiceNumberLength = numberLength * 2;
+const numberLength = 16; // 16
+const numberRadix = 16; // 16
 
 export const NumberFormat = {
     encodedLength: numberLength,
-    // twiceEncodedLength: twiceNumberLength,
     decode: (data: Uint8Array) => {
         const stringValue = decodeBytesToString(data);
         return Number.parseInt(stringValue, numberRadix);
