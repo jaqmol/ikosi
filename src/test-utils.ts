@@ -1,5 +1,5 @@
 import {
-    MakeMutableBackend,
+    MakeMutableIkosiBackend,
     MakeMutableIkosi,
 } from "./mutable";
 
@@ -26,7 +26,7 @@ export const loremIpsum = [
 ];
 
 export const loremIpsumIkosiStorageFormat = () => {
-    const iko = MakeMutableBackend();
+    const iko = MakeMutableIkosiBackend();
     for (const [index, sentence] of loremIpsum.entries()) {
         const sentenceBytes = encodeStringToBytes(sentence);
         iko.set(keyFromIndex(index), sentenceBytes);
@@ -51,7 +51,7 @@ export const multiTypeBExpectations = {
 };
 
 export const multiTypeAIkosiStorageFormat = () => {
-    const iko = MakeMutableIkosi(MakeMutableBackend());
+    const iko = MakeMutableIkosi(MakeMutableIkosiBackend());
     iko.setBoolean('boolean', multiTypeAExpectations.boolean);
     iko.setNumber('number', multiTypeAExpectations.number);
     iko.setString('string', multiTypeAExpectations.string);
@@ -60,7 +60,7 @@ export const multiTypeAIkosiStorageFormat = () => {
 };
 
 export const multiTypeBIkosiStorageFormat = () => {
-    const iko = MakeMutableIkosi(MakeMutableBackend());
+    const iko = MakeMutableIkosi(MakeMutableIkosiBackend());
     iko.setBoolean('boolean', multiTypeBExpectations.boolean);
     iko.setNumber('number', multiTypeBExpectations.number);
     iko.setString('string', multiTypeBExpectations.string);

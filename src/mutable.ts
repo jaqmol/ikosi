@@ -1,5 +1,5 @@
 import { 
-    MutableBackend,
+    MutableIkosiBackend,
     MutableIkosi,
 } from "./types";
 
@@ -16,7 +16,7 @@ import {
     decodeBytesToString,
 } from "./text-encoding";
 
-export const MakeMutableBackend = (buffer?: ArrayBuffer) : MutableBackend => {
+export const MakeMutableIkosiBackend = (buffer?: ArrayBuffer) : MutableIkosiBackend => {
     const dataIndex = buffer 
         ? extractDataIndex(new Uint8Array(buffer)) 
         : new Map<string, Uint8Array>();
@@ -48,7 +48,7 @@ export const MakeMutableBackend = (buffer?: ArrayBuffer) : MutableBackend => {
     };
 }
 
-export const MakeMutableIkosi = (backend: MutableBackend) : MutableIkosi => {
+export const MakeMutableIkosi = (backend: MutableIkosiBackend) : MutableIkosi => {
     const getBlob = (key: string) : Blob|undefined => {
         const bytes = backend.get(key);
         if (!bytes) return;

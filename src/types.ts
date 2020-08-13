@@ -3,7 +3,7 @@ export interface Span {
     length: number;
 }
 
-export interface ImmutableBackend {
+export interface ImmutableIkosiBackend {
     entries() : Iterator<[string, Uint8Array]>
     get(key: string) : Uint8Array|undefined
     has(key: string) : boolean
@@ -12,7 +12,7 @@ export interface ImmutableBackend {
     values() : Iterator<Uint8Array>
 }
 
-export interface ImmutableIkosi extends ImmutableBackend {
+export interface ImmutableIkosi extends ImmutableIkosiBackend {
     getBlob(key: string) : Blob|undefined
     getBoolean(key: string) : boolean|undefined
     getJSON<T=any>(key: string) : T|undefined
@@ -20,20 +20,17 @@ export interface ImmutableIkosi extends ImmutableBackend {
     getString(key: string) : string|undefined
 }
 
-export interface MutableBackend extends ImmutableBackend {
+export interface MutableIkosiBackend extends ImmutableIkosiBackend {
     clear() : void
     delete(key: string) : boolean
     serialize() : ArrayBuffer
     set(key: string, data: Uint8Array) : void
 }
 
-export interface MutableIkosi extends MutableBackend, ImmutableIkosi {
+export interface MutableIkosi extends MutableIkosiBackend, ImmutableIkosi {
     setBlob(key: string, value: Blob) : Promise<void>
     setBoolean(key: string, value: boolean) : void
     setJSON<T=any>(key: string, value: T) : void
     setNumber(key: string, value: number) : void
     setString(key: string, value: string) : void
 }
-
-// export type IndexStorageFormat = [string, number, number][];
-
